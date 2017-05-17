@@ -10,3 +10,5 @@ Vagrant.configure('2') do |config|
     echo "#{File.read(File.expand_path('~/.ssh/id_rsa.pub'))}" >> /root/.ssh/authorized_keys
   SHELL
 end
+
+# TODO: https://github.com/benoitbryon/xal/blob/master/.travis-ssh.sh
