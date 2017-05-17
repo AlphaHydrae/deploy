@@ -4,6 +4,33 @@ Deployment shell script.
 
 Inspired by [visionmedia/deploy][visionmedia].
 
+<!-- START doctoc generated TOC please keep comment here to allow auto update -->
+<!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
+
+
+- [Installation](#installation)
+- [Usage](#usage)
+- [Configuration](#configuration)
+- [Directives](#directives)
+  - [key (optional)](#key-optional)
+  - [ref (optional)](#ref-optional)
+  - [user](#user)
+  - [host](#host)
+  - [port (optional)](#port-optional)
+  - [repo](#repo)
+  - [path](#path)
+  - [env](#env)
+  - [forward-agent](#forward-agent)
+  - [needs_tty](#needs_tty)
+- [Hooks](#hooks)
+  - [pre-setup](#pre-setup)
+  - [post-setup](#post-setup)
+  - [pre-deploy](#pre-deploy)
+  - [deploy](#deploy)
+  - [post-deploy](#post-deploy)
+
+<!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
 ## Installation
 
     $ git clone https://github.com/AlphaHydrae/deploy.git
