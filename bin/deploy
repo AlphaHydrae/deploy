@@ -118,7 +118,7 @@ config_get_multiple() {
 
   test -n "$env" \
     && test -n "$key" \
-    && config_get_multiple_recursive $env $key
+    && config_get_multiple_recursive $key $env
 }
 
 config_get_multiple_recursive() {
@@ -127,20 +127,45 @@ config_get_multiple_recursive() {
   local env="$2"
   local values=
 
+  if ! config_section $env; then
+    echo_color $COLOR_RED "    [$env] config section not defined" 1>&2
+    exit 0
+  fi
+
+  local new_line=$'\n'
   local old_ifs=$IFS
   IFS=$'\n'
 
-  for inherit_env in $(config_get_multiple_in_env inherits $env); do
+  local inherits="$(config_get_multiple_in_env inherits $env)"
+  for inherit_env in $inherits; do
     IFS="$old_ifs"
 
-    values="$(config_get_multiple_in_env $key $inherit_env)\n$values"
+    local new_values="$(config_get_multiple_recursive $key $inherit_env)"
+    if test -n "$new_values"; then
+      [ -n "$values" ] && values="$values$new_line"
+      values="$values$new_values"
+    fi
 
     IFS=$'\n'
   done
 
   IFS="$old_ifs"
 
-  echo "$(config_get_multiple_in_env $key)\n$values"
+  if test -z "$inherits"; then
+    local top_level_values="$(config_get_multiple_in_env $key)"
+    if test -n "$top_level_values"; then
+      [ -n "$values" ] && values="$new_line$values"
+      values="$top_level_values$values"
+    fi
+  fi
+
+  local current_level_values="$(config_get_multiple_in_env $key $env)"
+  if test -n "$current_level_values"; then
+    [ -n "$values" ] && values="$values$new_line"
+    values="$values$current_level_values"
+  fi
+
+  echo "$values"
 }
 
 config_get_multiple_in_env() {

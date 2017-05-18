@@ -71,7 +71,7 @@ Or:
 
 ## Configuration
 
- By default `deploy` will look for _./deploy.conf_, consisting of one or more environments, `[staging]`, `[production]`, etc, followed by directives.
+By default `deploy` will look for _./deploy.conf_, consisting of one or more environments, `[staging]`, `[production]`, etc, followed by directives.
 
     [production]
     key /path/to/key.pem
