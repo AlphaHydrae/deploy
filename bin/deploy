@@ -46,9 +46,15 @@ usage() {
     setup                run remote setup commands
     update [ref]         deploy a release (commit, branch or tag)
     config [key]         output config file or [key]
-    exec|run <cmd>       execute the given <cmd>
+    exec <cmd>           execute the given <cmd>
     console              open an ssh session to the host
     list                 list previous deploy commits
+
+  Examples:
+
+    deploy prod setup             run remote setup in the prod env
+    deploy dev ref master         deploy the master branch in the dev env
+    deploy prod exec pm2 status   run 'pm2 status' in the prod env
 
 EOF
 }
@@ -323,8 +329,8 @@ list_deploys() {
 #
 
 require_env() {
-  config_section $ENV || abort "[$ENV] config section not defined"
   test -z "$ENV" && abort "<env> required"
+  config_section $ENV || abort "[$ENV] config section not defined"
 }
 
 #
@@ -363,7 +369,7 @@ while test $# -ne 0; do
     -V|--version) version; exit ;;
     -c|--config) set_config_path $1; shift ;;
     -C|--chdir) log cd $1; cd $1; shift ;;
-    run|exec) require_env; run "cd `config_get path`/current && $(env_command) && $@"; exit ;;
+    exec) require_env; run "cd `config_get path`/current && $(env_command) && $@"; exit ;;
     console) require_env; console; exit ;;
     setup) require_env; setup $@; exit ;;
     list) require_env; list_deploys; exit ;;

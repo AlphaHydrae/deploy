@@ -45,7 +45,7 @@ Or:
 
 ## Usage
 
-    Usage: deploy [options] <env> <command>
+    Usage: deploy [options] <env> [command]
 
     Options:
 
@@ -57,12 +57,17 @@ Or:
     Commands:
 
       setup                run remote setup commands
-      ref [ref]            deploy a version (commit, branch or tag)
+      update [ref]         deploy a release (commit, branch or tag)
       config [key]         output config file or [key]
-      exec|run <cmd>       execute the given <cmd>
+      exec <cmd>           execute the given <cmd>
       console              open an ssh session to the host
       list                 list previous deploy commits
-      update               update deploy from GitHub
+
+    Examples:
+
+      deploy prod setup             run remote setup in the prod env
+      deploy dev ref master         deploy the master branch in the dev env
+      deploy prod exec pm2 status   run 'pm2 status' in the prod env
 
 ## Configuration
 
