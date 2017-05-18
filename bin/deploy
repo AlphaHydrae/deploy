@@ -32,7 +32,7 @@ trap cleanup EXIT
 usage() {
   cat <<-EOF
 
-  Usage: deploy [options] <env> [command]
+  Usage: deploy [options] <env> <command>
 
   Options:
 
@@ -386,4 +386,5 @@ while test $# -ne 0; do
   esac
 done
 
+usage
 abort "no command given"

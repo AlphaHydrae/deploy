@@ -45,7 +45,7 @@ Or:
 
 ## Usage
 
-    Usage: deploy [options] <env> [command]
+    Usage: deploy [options] <env> <command>
 
     Options:
 
