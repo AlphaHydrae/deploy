@@ -112,9 +112,43 @@ config_get() {
 #
 
 config_get_multiple() {
+
+  local env=$ENV
   local key=$1
-  test -n "$key" \
-    && grep "^\[$ENV\]$" -A 999 $CONFIG \
+
+  test -n "$env" \
+    && test -n "$key" \
+    && config_get_multiple_recursive $env $key
+}
+
+config_get_multiple_recursive() {
+
+  local key="$1"
+  local env="$2"
+  local values=
+
+  local old_ifs=$IFS
+  IFS=$'\n'
+
+  for inherit_env in $(config_get_multiple_in_env inherits $env); do
+    IFS="$old_ifs"
+
+    values="$(config_get_multiple_in_env $key $inherit_env)\n$values"
+
+    IFS=$'\n'
+  done
+
+  IFS="$old_ifs"
+
+  echo "$(config_get_multiple_in_env $key)\n$values"
+}
+
+config_get_multiple_in_env() {
+
+  local key="$1"
+  local env="$2"
+
+  grep "^\[$env\]$" -A 999 $CONFIG \
     | tail -n +2 \
     | grep -v '^ *#' \
     | sed "/^\[/q" \
