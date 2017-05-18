@@ -16,6 +16,15 @@ VERSION="1.0.0"
 CONFIG=./deploy.conf
 ENV=
 
+UPDATE_REPO=git://github.com/AlphaHydrae/deploy.git
+DEPLOY_TMP_DIR=
+
+cleanup() {
+  test -n "$DEPLOY_TMP_DIR" && test -d "$DEPLOY_TMP_DIR" && rm -fr "$DEPLOY_TMP_DIR"
+}
+
+trap cleanup EXIT
+
 #
 # Output usage information
 #
@@ -263,7 +272,7 @@ deploy() {
   test -n "$ref" || abort no commit, branch or tag specified
 
   local path=`config_get path`
-  local release=`date -u '+%Y%m%d%H%M%S'`
+  local release=`date -u '+%Y-%m-%d-%H-%M-%S'`
 
   local current_dir="$path/current"
   local release_dir="$path/releases/$release"
@@ -328,6 +337,23 @@ check_for_local_changes() {
   [ -z "`git rev-list @{upstream}.. -n 1`" ]       || abort "push your changes before deploying"
 }
 
+deploy_tmp() {
+  DEPLOY_TMP_DIR="$(mktemp -d -t deploy)"
+  echo "$DEPLOY_TMP_DIR"
+}
+
+update() {
+  log "updating deploy from $UPDATE_REPO"
+
+  local tmp_dir=`deploy_tmp`
+  cd "$tmp_dir" \
+    && git clone $UPDATE_REPO "$tmp_dir" \
+    && make install \
+    || abort could not update deploy
+
+  log "updated $VERSION -> `./bin/deploy --version`"
+}
+
 # Parse arguments
 
 while test $# -ne 0; do
@@ -341,7 +367,8 @@ while test $# -ne 0; do
     console) require_env; console; exit ;;
     setup) require_env; setup $@; exit ;;
     list) require_env; list_deploys; exit ;;
-    update) require_env; check_for_local_changes; deploy "${1:-`config_get ref`}"; exit ;;
+    ref) require_env; check_for_local_changes; deploy "${1:-`config_get ref`}"; exit ;;
+    update) update; exit ;;
     config) config $@; exit ;;
     *)
       if test -z "$ENV"; then

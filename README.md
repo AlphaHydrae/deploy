@@ -57,11 +57,12 @@ Or:
     Commands:
 
       setup                run remote setup commands
-      update [ref]         deploy a release (commit, branch or tag)
+      ref [ref]            deploy a version (commit, branch or tag)
       config [key]         output config file or [key]
       exec|run <cmd>       execute the given <cmd>
       console              open an ssh session to the host
       list                 list previous deploy commits
+      update               update deploy from GitHub
 
 ## Configuration
 
