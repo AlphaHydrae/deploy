@@ -33,9 +33,15 @@ Inspired by [visionmedia/deploy][visionmedia].
 
 ## Installation
 
-    $ git clone https://github.com/AlphaHydrae/deploy.git
-    $ cd deploy
-    $ make install
+    $> git clone https://github.com/AlphaHydrae/deploy.git
+    $> cd deploy
+    $> make install
+
+Or:
+
+    $> curl -sSLo /usr/local/bin/deploy \
+       https://raw.githubusercontent.com/AlphaHydrae/deploy/master/bin/deploy \
+       && chmod +x /usr/local/bin/deploy
 
 ## Usage
 
