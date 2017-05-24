@@ -135,6 +135,14 @@ This directive can be used multiple times and each one can declare multiple vari
     env FOO=bar BAR=baz
     env PATH=/cool/bin:$PATH
 
+### forward-env
+
+Additional environment variables from the maching running the script.
+This directive can be used multiple times and each one can declare multiple variables.
+
+    forward-env FOO
+    forward-env BAR BAZ
+
 ### forward-agent
 
 Webhosts normally use read-only deploy keys to access private git repositories.
