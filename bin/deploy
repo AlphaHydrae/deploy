@@ -1,34 +1,15 @@
 #!/usr/bin/env bash
 
+# **_Shell script to deploy Git repositories._**
 #
-# deploy(1) - Shell script to deploy Git repositories
-# Released under the MIT License
-#
-# https://github.com/AlphaHydrae/deploy
-# Inspired by https://github.com/visionmedia/deploy
-#
+# * **Source:** https://github.com/AlphaHydrae/deploy
+# * **Originally by:** https://github.com/visionmedia/deploy
 
-COLOR_BOLD=1
-COLOR_RED=31
-COLOR_YELLOW=33
 
-VERSION="1.0.1"
-CONFIG=./deploy.conf
-ENV=
 
-UPDATE_REPO=git://github.com/AlphaHydrae/deploy.git
-DEPLOY_TMP_DIR=
 
-cleanup() {
-  test -n "$DEPLOY_TMP_DIR" && test -d "$DEPLOY_TMP_DIR" && rm -fr "$DEPLOY_TMP_DIR"
-}
 
-trap cleanup EXIT
-
-#
-# Output usage information
-#
-
+# ## Usage
 usage() {
   cat <<-EOF
 
@@ -59,83 +40,212 @@ usage() {
 EOF
 }
 
-#
-# Abort with <msg>
-#
 
-abort() {
-  echo
-  echo_color $COLOR_RED "  $@" 1>&2
-  echo
-  exit 1
+
+
+
+# ## Sub-commands
+
+# ### config
+#
+# Outputs configuration values.
+#
+#     # deploy.conf
+#     []
+#     user dev
+#
+#     [production]
+#     user root
+#     port 222
+#
+# If called with **no further arguments**, it outputs the whole configuration file:
+#
+# ```sh
+# # shell
+# deploy config
+# #=> []
+# #=> user dev
+# #=>
+# #=> [production]
+# #=> user root
+# #=> port 222
+# ```
+#
+# If **preceded by the environment**, outputs all values in that section:
+#
+# ```sh
+# # shell
+# deploy production config
+# #=> user root
+# #=> port 222
+# ```
+#
+# If called with **the environment and a key**, outputs the last value of that key in that section:
+#
+# ```sh
+# # shell
+# deploy production config user
+# #=> root
+# ```
+config() {
+  if test $# -eq 0; then
+    if test -n "$DEPLOY_ENV"; then
+      get_config_section "$DEPLOY_ENV"
+    else
+      cat "$DEPLOY_CONFIG"
+    fi
+  else
+    get_last_config_value $1
+  fi
 }
 
-#
-# Log <msg>
-#
 
-log() {
-  echo
-  echo_color $COLOR_BOLD "  ○ $@"
-}
 
-#
-# Set configuration file <path>
-#
 
+
+# ## General options
+
+# ### Custom configuration file
+#
+# `./deploy.conf` is used as the configuration file by default.
+# Use the `--config <path>` option or the `$DEPLOY_CONFIG` environment variable to use a different one.
 set_config_path() {
-  test -f $1 || abort invalid --config path
-  CONFIG=$1
+  test -f "$1" || abort "invalid --config <path>"
+  DEPLOY_CONFIG="$1"
 }
 
+# ### config_section_exists
 #
-# Check if config <section> exists
+# Checks whether the config file contains a section with the specified name.
+# Returns a non-zero status code if it doesn't.
 #
-
-config_section() {
-  grep "^\[$1\]$" $CONFIG &> /dev/null
+#     # deploy.conf
+#     [development]
+#     host example
+#
+# ```sh
+# # script
+# config_section_exists development
+# echo $? #=> 0
+# config_section_exists production
+# echo $? #=> 1
+# ```
+config_section_exists() {
+  grep "^\[$1\]$" "$DEPLOY_CONFIG" &> /dev/null
 }
 
+# ### get_config_env_var
 #
-# Get config value by <key>
+# Returns the environment variable that can be used to add
+# a value to the specified config key.
 #
+# ```sh
+# # script
+# get_config_env_var path
+# #=> DEPLOY_PATH
+# get_config_env_var post-setup
+# #=> DEPLOY_POST_SETUP
+# ```
+get_config_env_var() {
+  local key=$1
+  echo "DEPLOY_$key" | tr '-' '_' | tr '[a-z]' '[A-Z]'
+}
 
-config_get() {
+# ### get_last_config_value
+#
+# Gets the last value of a config key in the current environment and its inherited environments.
+#
+#     # deploy.conf
+#     []
+#     user dev
+#
+#     [production]
+#     user root
+#
+# ```sh
+# # script
+# get_last_config_value host production
+# #=> root
+# ```
+get_last_config_value() {
 
   local key=$1
-  local env_var=$2
+  local env_var=$(get_config_env_var $key)
 
-  local env_var_value=${!2}
+  local env_var_value=${!env_var}
   if [ -n "$env_var_value" ]; then
     echo "$env_var_value"
   else
     test -n "$key" \
-      && config_get_multiple "$key" \
+      && get_all_config_values "$key" \
       | tail -n 1
   fi
 }
 
+# ### get_all_config_values
 #
-# Get multiple config values by <key>
+# Gets all values of a config key in the current environment and its inherited environments.
 #
+#     # deploy.conf
+#     [development]
+#     deploy do-stuff
+#     deploy do-more-stuff
+#     deploy just-do-it
+#
+# ```sh
+# # script
+# get_all_config_values deploy development
+# #=> do-stuff
+# #=> do-more-stuff
+# #=> just-do-it
+# ```
+get_all_config_values() {
 
-config_get_multiple() {
-
-  local env=$ENV
+  local env=$DEPLOY_ENV
   local key=$1
 
   test -n "$env" \
     && test -n "$key" \
-    && config_get_multiple_recursive $key $env
+    && get_config_values_recursive $key $env
 }
 
-config_get_multiple_recursive() {
+# ### get_config_values_recursive
+#
+# Recursively gets all values of a config key for an environment and its inherited environments.
+# Used by `get_all_config_values`.
+#
+#     # deploy.conf
+#     []
+#     deploy do-stuff
+#
+#     [common]
+#     deploy do-more-stuff
+#     deploy do-stuff-again
+#
+#     [shared]
+#     inherits common
+#     deploy do-shared-stuff
+#
+#     [development]
+#     inherits common
+#     inherits shared
+#     deploy just-do-it
+#
+# ```sh
+# # script
+# get_config_values_recursive deploy development
+# #=> do-stuff
+# #=> do-more-stuff
+# #=> do-stuff-again
+# #=> just-do-it
+# ```
+get_config_values_recursive() {
 
   local key="$1"
   local env="$2"
   local values=
 
-  if ! config_section $env; then
+  if ! config_section_exists $env; then
     echo_color $COLOR_RED "    [$env] config section not defined" 1>&2
     exit 0
   fi
@@ -144,11 +254,11 @@ config_get_multiple_recursive() {
   local old_ifs=$IFS
   IFS=$'\n'
 
-  local inherits="$(config_get_multiple_in_env inherits $env)"
+  local inherits="$(get_config_values_in_env inherits $env)"
   for inherit_env in $inherits; do
     IFS="$old_ifs"
 
-    local new_values="$(config_get_multiple_recursive $key $inherit_env)"
+    local new_values="$(get_config_values_recursive $key $inherit_env)"
     if test -n "$new_values"; then
       [ -n "$values" ] && values="$values$new_line"
       values="$values$new_values"
@@ -160,14 +270,14 @@ config_get_multiple_recursive() {
   IFS="$old_ifs"
 
   if test -z "$inherits"; then
-    local top_level_values="$(config_get_multiple_in_env $key)"
+    local top_level_values="$(get_config_values_in_env $key)"
     if test -n "$top_level_values"; then
       [ -n "$values" ] && values="$new_line$values"
       values="$top_level_values$values"
     fi
   fi
 
-  local current_level_values="$(config_get_multiple_in_env $key $env)"
+  local current_level_values="$(get_config_values_in_env $key $env)"
   if test -n "$current_level_values"; then
     [ -n "$values" ] && values="$values$new_line"
     values="$values$current_level_values"
@@ -176,17 +286,61 @@ config_get_multiple_recursive() {
   echo "$values"
 }
 
-config_get_multiple_in_env() {
+# ### get_config_values_in_env
+#
+# Gets all values of a config key for an environment:
+#
+#     # deploy.conf
+#     [development]
+#     host foo
+#     port 42
+#     host bar
+#
+# ```sh
+# # script
+# get_config_values_in_env host development
+# #=> foo
+# #=> bar
+# ```
+get_config_values_in_env() {
 
   local key="$1"
   local env="$2"
 
-  grep "^\[$env\]$" -A 999 $CONFIG \
-    | tail -n +2 \
-    | grep -v '^ *#' \
-    | sed "/^\[/q" \
+  get_config_section $env \
     | grep "^$key " \
     | cut -d ' ' -f 2-999
+}
+
+# ### get_config_section
+#
+# Gets all key/value pairs in a config section, with all comments and empty lines omitted:
+#
+#     # deploy.conf
+#     [development]
+#
+#     host foo
+#     # SSH port
+#     port 42
+#     user dev
+#
+# ```sh
+# # script
+# get_config_section development
+# #=> host foo
+# #=> port 42
+# #=> user dev
+# ```
+get_config_section() {
+
+  local env="$1"
+
+  grep "^\[$env\]$" -A 999 "$DEPLOY_CONFIG" \
+    | tail -n +2 \
+    | grep -v "^ *#" \
+    | grep -v "^ *$" \
+    | sed "/^\[/q" \
+    | sed "/^\[/d"
 }
 
 #
@@ -202,11 +356,11 @@ version() {
 #
 
 ssh_command() {
-  local url="`config_get user SSH_USER`@`config_get host SSH_HOST`"
-  local key="`config_get key SSH_KEY`"
-  local forward_agent="`config_get forward-agent SSH_FORWARD_AGENT`"
-  local port="`config_get port SSH_PORT`"
-  local needs_tty="`config_get needs_tty SSH_NEEDS_TTY`"
+  local url="`get_last_config_value user`@`get_last_config_value host`"
+  local key="`get_last_config_value key`"
+  local forward_agent="`get_last_config_value forward-agent`"
+  local port="`get_last_config_value port`"
+  local needs_tty="`get_last_config_value needs_tty`"
 
   test -n "$forward_agent" && local agent="-A"
   test -n "$key" && local identity="-i $key"
@@ -241,22 +395,10 @@ run() {
 #
 
 console() {
-  local path="`config_get path DEPLOY_PATH`/current"
+  local path="`get_last_config_value path`/current"
   local shell="`ssh_command`"
   echo $shell
   $shell -t "cd $path; \$SHELL -il"
-}
-
-#
-# Output config or [key]
-#
-
-config() {
-  if test $# -eq 0; then
-    cat $CONFIG
-  else
-    config_get $1
-  fi
 }
 
 #
@@ -264,14 +406,14 @@ config() {
 #
 
 env_command() {
-  local path=`config_get path DEPLOY_PATH`
+  local path=`get_last_config_value path`
   echo "export ROOT_DIR=$path $(env_variables)"
 }
 
 env_variables() {
-  local env="$(echo `config_get_multiple env`|sed 's/\n/ /g')"
+  local env="$(echo `get_all_config_values env`|sed 's/\n/ /g')"
 
-  for forward_env in $(echo `config_get_multiple forward-env`|sed 's/\n/ /g'); do
+  for forward_env in $(echo `get_all_config_values forward-env`|sed 's/\n/ /g'); do
     env="$env $forward_env=$(echo "${!forward_env}"|sed 's/ /\\ /g')"
   done
 
@@ -290,8 +432,8 @@ hooks() {
   local dir=$2
   test -n "$dir" || abort working directory required
 
-  local path=`config_get path DEPLOY_PATH`
-  local commands=`config_get_multiple $hook`
+  local path=`get_last_config_value path`
+  local commands=`get_all_config_values $hook`
 
   log hook $hook
 
@@ -321,8 +463,8 @@ hooks() {
 #
 
 setup() {
-  local path=`config_get path DEPLOY_PATH`
-  local repo=`config_get repo`
+  local path=`get_last_config_value path`
+  local repo=`get_last_config_value repo`
 
   hooks pre-setup $path
 
@@ -350,7 +492,7 @@ deploy() {
   local ref=$1
   test -n "$ref" || abort no commit, branch or tag specified
 
-  local path=`config_get path DEPLOY_PATH`
+  local path=`get_last_config_value path`
   local release=`date -u '+%Y-%m-%d-%H-%M-%S'`
 
   local current_dir="$path/current"
@@ -393,7 +535,7 @@ deploy() {
 #
 
 list_deploys() {
-  local path=`config_get path DEPLOY_PATH`
+  local path=`get_last_config_value path`
   run "ls -1 $path/releases"
 }
 
@@ -402,8 +544,8 @@ list_deploys() {
 #
 
 require_env() {
-  test -z "$ENV" && abort "<env> required"
-  config_section $ENV || abort "[$ENV] config section not defined"
+  test -z "$DEPLOY_ENV" && abort "<env> required"
+  config_section_exists $DEPLOY_ENV || abort "[$DEPLOY_ENV] config section not defined"
 }
 
 #
@@ -433,35 +575,77 @@ update() {
   log "updated $VERSION -> `./bin/deploy --version`"
 }
 
-# Source environment file if present
+#
+# Abort with <msg>
+#
 
-[ -f .env ] && . .env
+abort() {
+  echo
+  echo_color $COLOR_RED "  $@" 1>&2
+  echo
+  exit 1
+}
 
-# Parse arguments
+cleanup() {
+  test -n "$DEPLOY_TMP_DIR" && test -d "$DEPLOY_TMP_DIR" && rm -fr "$DEPLOY_TMP_DIR"
+}
 
-while test $# -ne 0; do
-  arg=$1; shift
-  case $arg in
-    -h|--help) usage; exit ;;
-    -V|--version) version; exit ;;
-    -c|--config) set_config_path $1; shift ;;
-    -C|--chdir) log cd $1; cd $1; shift ;;
-    exec) require_env; run "cd `config_get path DEPLOY_PATH`/current && $(env_command) && $@"; exit ;;
-    console) require_env; console; exit ;;
-    setup) require_env; setup $@; exit ;;
-    list) require_env; list_deploys; exit ;;
-    ref) require_env; check_for_local_changes; deploy "${1:-`config_get ref`}"; exit ;;
-    update) update; exit ;;
-    config) config $@; exit ;;
-    *)
-      if test -z "$ENV"; then
-        ENV=$arg;
-      else
-        abort "unknown command or option $arg"
-      fi
-      ;;
-  esac
-done
+#
+# Log <msg>
+#
 
-usage
-abort "no command given"
+log() {
+  echo
+  echo_color $COLOR_BOLD "  ○ $@"
+}
+
+main() {
+  trap cleanup EXIT
+
+  # Source environment file if present
+  [ -f .env ] && . .env
+
+  COLOR_BOLD=1
+  COLOR_RED=31
+  COLOR_YELLOW=33
+
+  VERSION="1.0.1"
+  DEPLOY_ENV=
+
+  UPDATE_REPO=git://github.com/AlphaHydrae/deploy.git
+  DEPLOY_TMP_DIR=
+
+  if test -z "$DEPLOY_CONFIG"; then
+    DEPLOY_CONFIG=./deploy.conf
+  fi
+
+  # Parse arguments
+  while test $# -ne 0; do
+    arg=$1; shift
+    case $arg in
+      -h|--help) usage; exit ;;
+      -V|--version) version; exit ;;
+      -c|--config) set_config_path $1; shift ;;
+      -C|--chdir) log cd $1; cd $1; shift ;;
+      exec) require_env; run "cd `get_last_config_value path`/current && $(env_command) && $@"; exit ;;
+      console) require_env; console; exit ;;
+      setup) require_env; setup $@; exit ;;
+      list) require_env; list_deploys; exit ;;
+      ref) require_env; check_for_local_changes; deploy "${1:-`get_last_config_value ref`}"; exit ;;
+      update) update; exit ;;
+      config) config $@; exit ;;
+      *)
+        if test -z "$DEPLOY_ENV"; then
+          DEPLOY_ENV=$arg;
+        else
+          abort "unknown command or option $arg"
+        fi
+        ;;
+    esac
+  done
+
+  usage
+  abort "no command given"
+}
+
+main "$@"
