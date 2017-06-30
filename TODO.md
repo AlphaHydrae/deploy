@@ -1,5 +1,5 @@
 # TODO
 
-* Inherit env
+* use environment variable last when getting multiple values
 * Verbosity (simple commands, full commands)
-* Scripts
+* npm-like Scripts
