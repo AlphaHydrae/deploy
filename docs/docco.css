@@ -516,6 +516,11 @@ pre .hljs-chunk {
 pre .hljs-tex .hljs-formula {
   opacity: 0.5;
 }
+
+ul.sections > li.title > div.content {
+  margin-top: 2.6em;
+}
+
 #section-1, #section-1 .annotation, #section-1 .content, #section-1 .content .highlight, #section-1 .content .highlight pre {
   margin-top: 0;
   margin-bottom: 0;
@@ -525,6 +530,32 @@ pre .hljs-tex .hljs-formula {
 
 ul.sections > li {
   margin-bottom: 1em;
+}
+
+#title h1 {
+  font-size: 3em;
+  text-transform: none;
+}
+
+.annotation h2 {
+  font-size: 2em;
+}
+
+.annotation h3 {
+  padding-bottom: 0.3em;
+  text-transform: none;
+  border-bottom: 1px solid #dddddd;
+}
+
+.annotation h3 code {
+  background: none;
+  border: none;
+  padding: none;
+}
+
+.annotation h3 code {
+  font-size: 1em;
+  font-weight: bold;
 }
 
 .annotation h2, .annotation h3, .annotation h4, .annotation h5, .annotation h6 {

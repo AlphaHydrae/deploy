@@ -43,7 +43,7 @@
               <div class="pilwrap ">
                 <a class="pilcrow" href="#section-2">&#182;</a>
               </div>
-              <p><strong><em>Shell script to deploy Git repositories.</em></strong></p>
+              <p><strong><em>A shell script to deploy Git repositories.</em></strong></p>
 <ul>
 <li><strong>Source:</strong> <a href="https://github.com/AlphaHydrae/deploy">https://github.com/AlphaHydrae/deploy</a></li>
 <li><strong>Originally by:</strong> <a href="https://github.com/visionmedia/deploy">https://github.com/visionmedia/deploy</a></li>
@@ -71,25 +71,28 @@
 
   Options:
 
-    -C, --<span class="hljs-built_in">chdir</span> &lt;path&gt;   change the working directory to &lt;path&gt;
-    -c, --config &lt;path&gt;  <span class="hljs-built_in">set</span> config path. defaults to ./deploy.conf
-    -V, --version        output program version
-    -h, --<span class="hljs-built_in">help</span>           output <span class="hljs-built_in">help</span> information
+    -C, --<span class="hljs-built_in">chdir</span> &lt;path&gt;    change the working directory to &lt;path&gt;
+    -c, --config &lt;path&gt;   <span class="hljs-built_in">set</span> config path. defaults to ./deploy.conf
+    -V, --version         output program version
+    -h, --<span class="hljs-built_in">help</span>            output <span class="hljs-built_in">help</span> information
 
   Commands:
 
-    setup                run remote setup commands
-    update [ref]         deploy a release (commit, branch or tag)
-    config [key]         output config file or [key]
-    <span class="hljs-built_in">exec</span> &lt;cmd&gt;           execute the given &lt;cmd&gt;
-    console              open an ssh session to the host
-    list                 list previous deploy commits
+    &lt;env&gt; setup              run remote setup commands
+    &lt;env&gt; ref [ref]          deploy a release (commit, branch or tag)
+    [env] config [key]       output config file, a section, or one value
+    &lt;env&gt; config-all [key]   output all values of a config key <span class="hljs-keyword">in</span> an environment
+    &lt;env&gt; console [path]     open an ssh session to the host
+    &lt;env&gt; <span class="hljs-built_in">exec</span> &lt;cmd&gt;         execute the given <span class="hljs-built_in">command</span> on the host
+    &lt;env&gt; list               list previous deploy commits
+    update                   update this script to the latest version
 
   Examples:
 
     deploy prod setup             run remote setup <span class="hljs-keyword">in</span> the prod env
     deploy dev ref master         deploy the master branch <span class="hljs-keyword">in</span> the dev env
     deploy prod <span class="hljs-built_in">exec</span> pm2 status   run <span class="hljs-string">'pm2 status'</span> <span class="hljs-keyword">in</span> the prod env
+    deploy dev config user        get the value of the user key <span class="hljs-keyword">in</span> the dev env
 
 EOF
 }</pre></div></div>
@@ -116,50 +119,14 @@ EOF
               <div class="pilwrap ">
                 <a class="pilcrow" href="#section-5">&#182;</a>
               </div>
-              <h3 id="config">config</h3>
-<p>Outputs configuration values.</p>
-<pre><code><span class="hljs-comment"># deploy.conf</span>
-[]
-user dev
-
-[production]
-user root
-port 222
-</code></pre><p>If called with <strong>no further arguments</strong>, it outputs the whole configuration file:</p>
-<pre><code class="lang-sh"><span class="hljs-comment"># shell</span>
-deploy config
-<span class="hljs-comment">#=&gt; []</span>
-<span class="hljs-comment">#=&gt; user dev</span>
-<span class="hljs-comment">#=&gt;</span>
-<span class="hljs-comment">#=&gt; [production]</span>
-<span class="hljs-comment">#=&gt; user root</span>
-<span class="hljs-comment">#=&gt; port 222</span>
-</code></pre>
-<p>If <strong>preceded by the environment</strong>, outputs all values in that section:</p>
-<pre><code class="lang-sh"><span class="hljs-comment"># shell</span>
-deploy production config
-<span class="hljs-comment">#=&gt; user root</span>
-<span class="hljs-comment">#=&gt; port 222</span>
-</code></pre>
-<p>If called with <strong>the environment and a key</strong>, outputs the last value of that key in that section:</p>
-<pre><code class="lang-sh"><span class="hljs-comment"># shell</span>
-deploy production config user
-<span class="hljs-comment">#=&gt; root</span>
-</code></pre>
+              <h3 id="-env-setup-"><code>&lt;env&gt; setup</code></h3>
+<p>Perform first-time setup tasks before deployment.</p>
 
             </div>
             
-            <div class="content"><div class='highlight'><pre><span class="hljs-function"><span class="hljs-title">config</span></span>() {
-  <span class="hljs-keyword">if</span> <span class="hljs-built_in">test</span> <span class="hljs-variable">$#</span> -eq 0; <span class="hljs-keyword">then</span>
-    <span class="hljs-keyword">if</span> <span class="hljs-built_in">test</span> -n <span class="hljs-string">"<span class="hljs-variable">$DEPLOY_ENV</span>"</span>; <span class="hljs-keyword">then</span>
-      get_config_section <span class="hljs-string">"<span class="hljs-variable">$DEPLOY_ENV</span>"</span>
-    <span class="hljs-keyword">else</span>
-      cat <span class="hljs-string">"<span class="hljs-variable">$DEPLOY_CONFIG</span>"</span>
-    <span class="hljs-keyword">fi</span>
-  <span class="hljs-keyword">else</span>
-    get_last_config_value <span class="hljs-variable">$1</span>
-  <span class="hljs-keyword">fi</span>
-}</pre></div></div>
+            <div class="content"><div class='highlight'><pre><span class="hljs-function"><span class="hljs-title">setup</span></span>() {
+  <span class="hljs-built_in">local</span> path=<span class="hljs-string">"<span class="hljs-variable">$(get_last_config_value path)</span>"</span>
+  <span class="hljs-built_in">local</span> repo=<span class="hljs-string">"<span class="hljs-variable">$(get_last_config_value repo)</span>"</span></pre></div></div>
             
         </li>
         
@@ -170,9 +137,11 @@ deploy production config user
               <div class="pilwrap ">
                 <a class="pilcrow" href="#section-6">&#182;</a>
               </div>
-              <h2 id="general-options">General options</h2>
+              <p>Run user-defined <code>pre-setup</code> hooks (if any).</p>
 
             </div>
+            
+            <div class="content"><div class='highlight'><pre>  hooks pre-setup <span class="hljs-string">"<span class="hljs-variable">$path</span>"</span></pre></div></div>
             
         </li>
         
@@ -183,16 +152,15 @@ deploy production config user
               <div class="pilwrap ">
                 <a class="pilcrow" href="#section-7">&#182;</a>
               </div>
-              <h3 id="custom-configuration-file">Custom configuration file</h3>
-<p><code>./deploy.conf</code> is used as the configuration file by default.
-Use the <code>--config &lt;path&gt;</code> option or the <code>$DEPLOY_CONFIG</code> environment variable to use a different one.</p>
+              <p>Create the <code>releases</code> and <code>tmp</code> directories in the deployment directory
+if they don’t already exist.</p>
 
             </div>
             
-            <div class="content"><div class='highlight'><pre><span class="hljs-function"><span class="hljs-title">set_config_path</span></span>() {
-  <span class="hljs-built_in">test</span> -f <span class="hljs-string">"<span class="hljs-variable">$1</span>"</span> || abort <span class="hljs-string">"invalid --config &lt;path&gt;"</span>
-  DEPLOY_CONFIG=<span class="hljs-string">"<span class="hljs-variable">$1</span>"</span>
-}</pre></div></div>
+            <div class="content"><div class='highlight'><pre>  <span class="hljs-built_in">log</span> running setup
+  run <span class="hljs-string">"{ test -d <span class="hljs-variable">$path</span> || exit 1; } \
+       &amp;&amp; mkdir -p <span class="hljs-variable">$path</span>/releases <span class="hljs-variable">$path</span>/tmp"</span> \
+    || abort <span class="hljs-string">"failed to set up directories; make sure <span class="hljs-variable">$path</span> exists and is writable"</span></pre></div></div>
             
         </li>
         
@@ -203,7 +171,450 @@ Use the <code>--config &lt;path&gt;</code> option or the <code>$DEPLOY_CONFIG</c
               <div class="pilwrap ">
                 <a class="pilcrow" href="#section-8">&#182;</a>
               </div>
-              <h3 id="config_section_exists">config_section_exists</h3>
+              <p>Clone the repository into <code>repo</code> in the deployment directory
+if it isn’t already there.</p>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>  <span class="hljs-built_in">log</span> cloning repo
+  run <span class="hljs-string">"test -d <span class="hljs-variable">$path</span>/repo \
+       || { git clone --bare <span class="hljs-variable">$repo</span> <span class="hljs-variable">$path</span>/repo || exit 1; }"</span> \
+    || abort <span class="hljs-string">"failed to clone repo"</span></pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-9">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-9">&#182;</a>
+              </div>
+              <p>Run user-defined <code>post-setup</code> hooks (if any).</p>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>  hooks post-setup <span class="hljs-string">"<span class="hljs-variable">$path</span>"</span>
+
+  <span class="hljs-built_in">log</span> setup complete
+}</pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-10">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-10">&#182;</a>
+              </div>
+              <h3 id="-env-ref-ref-"><code>&lt;env&gt; ref [ref]</code></h3>
+<p>Deploys the latest changes from the repository.</p>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre><span class="hljs-function"><span class="hljs-title">deploy_ref</span></span>() {
+  <span class="hljs-built_in">local</span> path=`get_last_config_value path`
+  <span class="hljs-built_in">local</span> release=`date -u <span class="hljs-string">'+%Y-%m-%d-%H-%M-%S'</span>`
+  <span class="hljs-built_in">local</span> current_dir=<span class="hljs-string">"<span class="hljs-variable">$path</span>/current"</span>
+  <span class="hljs-built_in">local</span> release_dir=<span class="hljs-string">"<span class="hljs-variable">$path</span>/releases/<span class="hljs-variable">$release</span>"</span>
+  <span class="hljs-built_in">local</span> tmp_dir=<span class="hljs-string">"<span class="hljs-variable">$path</span>/tmp"</span></pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-11">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-11">&#182;</a>
+              </div>
+              <p>A Git reference to a commit, branch or tag is required,
+either from the command line argument or from a <code>ref</code> key in the configuration file.</p>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>  <span class="hljs-built_in">local</span> ref=<span class="hljs-variable">${1:-`get_last_config_value ref`}</span>
+  <span class="hljs-built_in">test</span> -n <span class="hljs-string">"<span class="hljs-variable">$ref</span>"</span> || abort <span class="hljs-string">"no commit, branch or tag specified"</span>
+
+  <span class="hljs-built_in">log</span> deploying
+  <span class="hljs-built_in">echo</span> <span class="hljs-string">"    ref: <span class="hljs-variable">$ref</span>"</span>
+  <span class="hljs-built_in">echo</span> <span class="hljs-string">"    release: <span class="hljs-variable">$release</span>"</span></pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-12">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-12">&#182;</a>
+              </div>
+              <p>Run user-defined pre-deploy hooks (if any).</p>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>  hooks pre-deploy <span class="hljs-variable">$current_dir</span></pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-13">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-13">&#182;</a>
+              </div>
+              <p>Fetch the latest changes from the repository (from the specified ref).</p>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>  <span class="hljs-built_in">log</span> fetching updates
+  run <span class="hljs-string">"cd <span class="hljs-variable">$path</span>/repo \
+       &amp;&amp; git fetch origin '+refs/heads/*:refs/heads/*' \
+       &amp;&amp; git rev-list -n 1 <span class="hljs-variable">$ref</span>"</span> \
+    || abort <span class="hljs-string">"could not fetch changes"</span></pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-14">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-14">&#182;</a>
+              </div>
+              <p>Extract the sources at the specified ref into the <code>releases</code> directory.</p>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>  <span class="hljs-built_in">log</span> <span class="hljs-string">"extracting source at <span class="hljs-variable">$ref</span>"</span>
+  run <span class="hljs-string">"cd <span class="hljs-variable">$path</span>/repo \
+       &amp;&amp; mkdir -p <span class="hljs-variable">$release_dir</span> \
+       &amp;&amp; git archive --output <span class="hljs-variable">$tmp_dir</span>/release-<span class="hljs-variable">$release</span>.tar <span class="hljs-variable">$ref</span> \
+       &amp;&amp; tar -C <span class="hljs-variable">$release_dir</span> -x --file <span class="hljs-variable">$tmp_dir</span>/release-<span class="hljs-variable">$release</span>.tar \
+       &amp;&amp; rm -f <span class="hljs-variable">$tmp_dir</span>/release-*.tar"</span> \
+    || abort <span class="hljs-string">"could not extract source from repository"</span></pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-15">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-15">&#182;</a>
+              </div>
+              <p>Run user-defined deploy hooks (if any).</p>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>  hooks deploy <span class="hljs-variable">$release_dir</span></pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-16">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-16">&#182;</a>
+              </div>
+              <p>Link the <code>current</code> directory to the new release.</p>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>  <span class="hljs-built_in">log</span> linking current
+  run <span class="hljs-string">"ln -fns <span class="hljs-variable">$release_dir</span> <span class="hljs-variable">$current_dir</span>"</span> \
+    || abort <span class="hljs-string">"could not create current symlink"</span></pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-17">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-17">&#182;</a>
+              </div>
+              <p>Run user-defined post-deploy hooks (if any).</p>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>  hooks post-deploy <span class="hljs-variable">$current_dir</span>
+
+  <span class="hljs-built_in">log</span> successfully deployed
+}</pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-18">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-18">&#182;</a>
+              </div>
+              <h3 id="-env-config-key-"><code>[env] config [key]</code></h3>
+<p>Prints configuration values.</p>
+<pre><code><span class="hljs-comment"># deploy.conf</span>
+[]
+user dev
+
+[production]
+user root
+port 222
+</code></pre>
+            </div>
+            
+            <div class="content"><div class='highlight'><pre><span class="hljs-function"><span class="hljs-title">config</span></span>() {</pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-19">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-19">&#182;</a>
+              </div>
+              <p>If called with <strong>no environment and no arguments</strong>, print the whole configuration file:</p>
+<pre><code class="lang-sh"><span class="hljs-comment"># shell</span>
+deploy config
+<span class="hljs-comment">#=&gt; []</span>
+<span class="hljs-comment">#=&gt; user dev</span>
+<span class="hljs-comment">#=&gt;</span>
+<span class="hljs-comment">#=&gt; [production]</span>
+<span class="hljs-comment">#=&gt; user root</span>
+<span class="hljs-comment">#=&gt; port 222</span>
+</code></pre>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>  <span class="hljs-keyword">if</span> <span class="hljs-built_in">test</span> <span class="hljs-variable">$#</span> -eq 0; <span class="hljs-keyword">then</span>
+    <span class="hljs-keyword">if</span> <span class="hljs-built_in">test</span> -z <span class="hljs-string">"<span class="hljs-variable">$DEPLOY_ENV</span>"</span>; <span class="hljs-keyword">then</span>
+      cat <span class="hljs-string">"<span class="hljs-variable">$DEPLOY_CONFIG</span>"</span></pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-20">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-20">&#182;</a>
+              </div>
+              <p>If <strong>preceded by the environment</strong>, print all values in that section:</p>
+<pre><code class="lang-sh"><span class="hljs-comment"># shell</span>
+deploy production config
+<span class="hljs-comment">#=&gt; user root</span>
+<span class="hljs-comment">#=&gt; port 222</span>
+</code></pre>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>    <span class="hljs-keyword">else</span>
+      get_config_section <span class="hljs-string">"<span class="hljs-variable">$DEPLOY_ENV</span>"</span>
+    <span class="hljs-keyword">fi</span></pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-21">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-21">&#182;</a>
+              </div>
+              <p>If called with <strong>the environment and a key</strong>, print the last value of that key in that section:</p>
+<pre><code class="lang-sh"><span class="hljs-comment"># shell</span>
+deploy production config user
+<span class="hljs-comment">#=&gt; root</span>
+</code></pre>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>  <span class="hljs-keyword">else</span>
+    get_last_config_value <span class="hljs-variable">$1</span>
+  <span class="hljs-keyword">fi</span>
+}</pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-22">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-22">&#182;</a>
+              </div>
+              <h3 id="-env-config-all-key-"><code>&lt;env&gt; config-all &lt;key&gt;</code></h3>
+<p>Outputs all values of a config key in the current environment and its inherited environments.</p>
+<pre><code><span class="hljs-comment"># deploy.conf</span>
+[]
+user dev
+
+[production]
+user root
+port 222
+</code></pre><pre><code class="lang-sh"><span class="hljs-comment"># shell</span>
+deploy production config-all user
+<span class="hljs-comment">#=&gt; dev</span>
+<span class="hljs-comment">#=&gt; root</span>
+</code></pre>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre><span class="hljs-function"><span class="hljs-title">config_all</span></span>() {
+  get_all_config_values <span class="hljs-string">"<span class="hljs-variable">$1</span>"</span>
+}</pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-23">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-23">&#182;</a>
+              </div>
+              <h3 id="-env-console-path-"><code>&lt;env&gt; console [path]</code></h3>
+<p>Launches an interactive ssh console session.</p>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre><span class="hljs-function"><span class="hljs-title">console</span></span>() {</pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-24">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-24">&#182;</a>
+              </div>
+              <p>If an <strong>absolute path</strong> is given, the session starts there.</p>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>  <span class="hljs-built_in">local</span> path=<span class="hljs-string">"<span class="hljs-variable">$1</span>"</span></pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-25">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-25">&#182;</a>
+              </div>
+              <p>If <strong>no path</strong> is given, the session starts in the deployment directory.</p>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>  <span class="hljs-keyword">if</span> <span class="hljs-built_in">test</span> -z <span class="hljs-string">"<span class="hljs-variable">$path</span>"</span>; <span class="hljs-keyword">then</span>
+    path=<span class="hljs-string">"<span class="hljs-variable">$(get_last_config_value path)</span>"</span></pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-26">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-26">&#182;</a>
+              </div>
+              <p>If a <strong>relative path</strong> is given, it starts there relative to the deployment directory.</p>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>  <span class="hljs-keyword">elif</span> [[ ! <span class="hljs-string">"<span class="hljs-variable">$path</span>"</span> =~ ^\/ ]]; <span class="hljs-keyword">then</span>
+    path=<span class="hljs-string">"<span class="hljs-variable">$(get_last_config_value path)</span>/<span class="hljs-variable">$path</span>"</span>
+  <span class="hljs-keyword">fi</span>
+
+  <span class="hljs-built_in">test</span> -n <span class="hljs-string">"<span class="hljs-variable">$path</span>"</span> || abort <span class="hljs-string">"path is required"</span>
+
+  <span class="hljs-built_in">local</span> shell=<span class="hljs-string">"`build_ssh_command`"</span>
+  <span class="hljs-built_in">echo</span> <span class="hljs-variable">$shell</span>
+  <span class="hljs-variable">$shell</span> -t <span class="hljs-string">"cd <span class="hljs-variable">$path</span>; \$SHELL -il"</span>
+}</pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-27">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-27">&#182;</a>
+              </div>
+              <h2 id="general-options">General options</h2>
+
+            </div>
+            
+        </li>
+        
+        
+        <li id="section-28">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-28">&#182;</a>
+              </div>
+              <h3 id="-config-path-"><code>--config &lt;path&gt;</code></h3>
+<p><code>./deploy.conf</code> is used as the configuration file by default.
+Use this option or the <code>$DEPLOY_CONFIG</code> environment variable to load a different file.</p>
+<p>The option takes precedence over the environment variable.</p>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre><span class="hljs-function"><span class="hljs-title">set_config_path</span></span>() {
+  <span class="hljs-built_in">test</span> -f <span class="hljs-string">"<span class="hljs-variable">$1</span>"</span> || abort <span class="hljs-string">"invalid --config &lt;path&gt; (no such file)"</span>
+  DEPLOY_CONFIG=<span class="hljs-string">"<span class="hljs-variable">$1</span>"</span>
+}</pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-29">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-29">&#182;</a>
+              </div>
+              <h3 id="-version-"><code>--version</code></h3>
+<p>Prints the current version and exits.</p>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre><span class="hljs-function"><span class="hljs-title">version</span></span>() {
+  <span class="hljs-built_in">echo</span> <span class="hljs-variable">$VERSION</span>
+}</pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-30">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-30">&#182;</a>
+              </div>
+              <h2 id="internal-implementation">Internal implementation</h2>
+
+            </div>
+            
+        </li>
+        
+        
+        <li id="section-31">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-31">&#182;</a>
+              </div>
+              <h3 id="-config_section_exists-env-"><code>config_section_exists $env</code></h3>
 <p>Checks whether the config file contains a section with the specified name.
 Returns a non-zero status code if it doesn’t.</p>
 <pre><code><span class="hljs-comment"># deploy.conf</span>
@@ -225,14 +636,14 @@ config_section_exists production
         </li>
         
         
-        <li id="section-9">
+        <li id="section-32">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-9">&#182;</a>
+                <a class="pilcrow" href="#section-32">&#182;</a>
               </div>
-              <h3 id="get_config_env_var">get_config_env_var</h3>
-<p>Returns the environment variable that can be used to add
+              <h3 id="-get_config_env_var-key-"><code>get_config_env_var $key</code></h3>
+<p>Gets the environment variable that can be used to add
 a value to the specified config key.</p>
 <pre><code class="lang-sh"><span class="hljs-comment"># script</span>
 get_config_env_var path
@@ -251,13 +662,13 @@ get_config_env_var post-setup
         </li>
         
         
-        <li id="section-10">
+        <li id="section-33">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-10">&#182;</a>
+                <a class="pilcrow" href="#section-33">&#182;</a>
               </div>
-              <h3 id="get_last_config_value">get_last_config_value</h3>
+              <h3 id="-get_last_config_value-key-"><code>get_last_config_value $key</code></h3>
 <p>Gets the last value of a config key in the current environment and its inherited environments.</p>
 <pre><code><span class="hljs-comment"># deploy.conf</span>
 []
@@ -290,13 +701,13 @@ get_last_config_value host production
         </li>
         
         
-        <li id="section-11">
+        <li id="section-34">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-11">&#182;</a>
+                <a class="pilcrow" href="#section-34">&#182;</a>
               </div>
-              <h3 id="get_all_config_values">get_all_config_values</h3>
+              <h3 id="-get_all_config_values-key-"><code>get_all_config_values $key</code></h3>
 <p>Gets all values of a config key in the current environment and its inherited environments.</p>
 <pre><code><span class="hljs-comment"># deploy.conf</span>
 [development]
@@ -325,13 +736,13 @@ get_all_config_values deploy development
         </li>
         
         
-        <li id="section-12">
+        <li id="section-35">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-12">&#182;</a>
+                <a class="pilcrow" href="#section-35">&#182;</a>
               </div>
-              <h3 id="get_config_values_recursive">get_config_values_recursive</h3>
+              <h3 id="-get_config_values_recursive-key-env-"><code>get_config_values_recursive $key $env</code></h3>
 <p>Recursively gets all values of a config key for an environment and its inherited environments.
 Used by <code>get_all_config_values</code>.</p>
 <pre><code><span class="hljs-comment"># deploy.conf</span>
@@ -410,13 +821,13 @@ get_config_values_recursive deploy development
         </li>
         
         
-        <li id="section-13">
+        <li id="section-36">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-13">&#182;</a>
+                <a class="pilcrow" href="#section-36">&#182;</a>
               </div>
-              <h3 id="get_config_values_in_env">get_config_values_in_env</h3>
+              <h3 id="-get_config_values_in_env-key-env-"><code>get_config_values_in_env $key $env</code></h3>
 <p>Gets all values of a config key for an environment:</p>
 <pre><code><span class="hljs-comment"># deploy.conf</span>
 [development]
@@ -444,13 +855,13 @@ get_config_values_in_env host development
         </li>
         
         
-        <li id="section-14">
+        <li id="section-37">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-14">&#182;</a>
+                <a class="pilcrow" href="#section-37">&#182;</a>
               </div>
-              <h3 id="get_config_section">get_config_section</h3>
+              <h3 id="-get_config_section-env-"><code>get_config_section $env</code></h3>
 <p>Gets all key/value pairs in a config section, with all comments and empty lines omitted:</p>
 <pre><code><span class="hljs-comment"># deploy.conf</span>
 [development]
@@ -483,37 +894,28 @@ get_config_section development
         </li>
         
         
-        <li id="section-15">
+        <li id="section-38">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-15">&#182;</a>
+                <a class="pilcrow" href="#section-38">&#182;</a>
               </div>
-              <p>Output version</p>
+              <h3 id="-build_ssh_command-"><code>build_ssh_command</code></h3>
+<p>Builds an SSH command to connect to the host.</p>
 
             </div>
             
-            <div class="content"><div class='highlight'><pre>
-<span class="hljs-function"><span class="hljs-title">version</span></span>() {
-  <span class="hljs-built_in">echo</span> <span class="hljs-variable">$VERSION</span>
-}</pre></div></div>
-            
-        </li>
-        
-        
-        <li id="section-16">
-            <div class="annotation">
-              
-              <div class="pilwrap ">
-                <a class="pilcrow" href="#section-16">&#182;</a>
-              </div>
-              <p>Return the ssh command to run</p>
+            <div class="content"><div class='highlight'><pre><span class="hljs-function"><span class="hljs-title">build_ssh_command</span></span>() {
+  <span class="hljs-built_in">local</span> host=$(get_last_config_value host)
+  <span class="hljs-built_in">test</span> -n <span class="hljs-string">"<span class="hljs-variable">$host</span>"</span> || abort <span class="hljs-string">"no host config found in environment <span class="hljs-variable">$DEPLOY_ENV</span>"</span>
 
-            </div>
-            
-            <div class="content"><div class='highlight'><pre>
-<span class="hljs-function"><span class="hljs-title">ssh_command</span></span>() {
-  <span class="hljs-built_in">local</span> url=<span class="hljs-string">"`get_last_config_value user`@`get_last_config_value host`"</span>
+  <span class="hljs-built_in">local</span> url=<span class="hljs-variable">$host</span>
+
+  <span class="hljs-built_in">local</span> user=$(get_last_config_value user)
+  <span class="hljs-keyword">if</span> <span class="hljs-built_in">test</span> -n <span class="hljs-string">"<span class="hljs-variable">$user</span>"</span>; <span class="hljs-keyword">then</span>
+    url=<span class="hljs-string">"<span class="hljs-variable">$user</span>@<span class="hljs-variable">$url</span>"</span>
+  <span class="hljs-keyword">fi</span>
+
   <span class="hljs-built_in">local</span> key=<span class="hljs-string">"`get_last_config_value key`"</span>
   <span class="hljs-built_in">local</span> forward_agent=<span class="hljs-string">"`get_last_config_value forward-agent`"</span>
   <span class="hljs-built_in">local</span> port=<span class="hljs-string">"`get_last_config_value port`"</span>
@@ -529,18 +931,18 @@ get_config_section development
         </li>
         
         
-        <li id="section-17">
+        <li id="section-39">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-17">&#182;</a>
+                <a class="pilcrow" href="#section-39">&#182;</a>
               </div>
-              <p>Use <color> to print <msg...></p>
+              <h3 id="-echo_color-color-message-"><code>echo_color $color $message</code></h3>
+<p>Prints a message in the specified color.</p>
 
             </div>
             
-            <div class="content"><div class='highlight'><pre>
-<span class="hljs-function"><span class="hljs-title">echo_color</span></span>() {
+            <div class="content"><div class='highlight'><pre><span class="hljs-function"><span class="hljs-title">echo_color</span></span>() {
   <span class="hljs-built_in">local</span> color=<span class="hljs-string">"<span class="hljs-variable">$1</span>"</span>
   <span class="hljs-built_in">shift</span>
   <span class="hljs-built_in">local</span> message=<span class="hljs-string">"<span class="hljs-variable">$@</span>"</span>
@@ -550,19 +952,19 @@ get_config_section development
         </li>
         
         
-        <li id="section-18">
+        <li id="section-40">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-18">&#182;</a>
+                <a class="pilcrow" href="#section-40">&#182;</a>
               </div>
-              <p>Run the given remote <cmd></p>
+              <h3 id="-run-"><code>run $@</code></h3>
+<p>Runs the specified command on the host through SSH.</p>
 
             </div>
             
-            <div class="content"><div class='highlight'><pre>
-<span class="hljs-function"><span class="hljs-title">run</span></span>() {
-  <span class="hljs-built_in">local</span> shell=<span class="hljs-string">"`ssh_command`"</span>
+            <div class="content"><div class='highlight'><pre><span class="hljs-function"><span class="hljs-title">run</span></span>() {
+  <span class="hljs-built_in">local</span> shell=<span class="hljs-string">"`build_ssh_command`"</span>
   echo_color 33 <span class="hljs-string">"<span class="hljs-variable">$@</span>"</span> | tr -s <span class="hljs-string">' '</span> | sed <span class="hljs-string">'s/^/    /'</span>
   <span class="hljs-variable">$shell</span> <span class="hljs-variable">$@</span>
 }</pre></div></div>
@@ -570,39 +972,17 @@ get_config_section development
         </li>
         
         
-        <li id="section-19">
+        <li id="section-41">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-19">&#182;</a>
-              </div>
-              <p>Launch an interactive ssh console session</p>
-
-            </div>
-            
-            <div class="content"><div class='highlight'><pre>
-<span class="hljs-function"><span class="hljs-title">console</span></span>() {
-  <span class="hljs-built_in">local</span> path=<span class="hljs-string">"`get_last_config_value path`/current"</span>
-  <span class="hljs-built_in">local</span> shell=<span class="hljs-string">"`ssh_command`"</span>
-  <span class="hljs-built_in">echo</span> <span class="hljs-variable">$shell</span>
-  <span class="hljs-variable">$shell</span> -t <span class="hljs-string">"cd <span class="hljs-variable">$path</span>; \$SHELL -il"</span>
-}</pre></div></div>
-            
-        </li>
-        
-        
-        <li id="section-20">
-            <div class="annotation">
-              
-              <div class="pilwrap ">
-                <a class="pilcrow" href="#section-20">&#182;</a>
+                <a class="pilcrow" href="#section-41">&#182;</a>
               </div>
               <p>Returns the command used to export the user’s environment</p>
 
             </div>
             
-            <div class="content"><div class='highlight'><pre>
-<span class="hljs-function"><span class="hljs-title">env_command</span></span>() {
+            <div class="content"><div class='highlight'><pre><span class="hljs-function"><span class="hljs-title">env_command</span></span>() {
   <span class="hljs-built_in">local</span> path=`get_last_config_value path`
   <span class="hljs-built_in">echo</span> <span class="hljs-string">"export ROOT_DIR=<span class="hljs-variable">$path</span> <span class="hljs-variable">$(env_variables)</span>"</span>
 }
@@ -620,18 +1000,17 @@ get_config_section development
         </li>
         
         
-        <li id="section-21">
+        <li id="section-42">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-21">&#182;</a>
+                <a class="pilcrow" href="#section-42">&#182;</a>
               </div>
               <p>Execute hook(s) <name> relative to the path configured</p>
 
             </div>
             
-            <div class="content"><div class='highlight'><pre>
-<span class="hljs-function"><span class="hljs-title">hooks</span></span>() {
+            <div class="content"><div class='highlight'><pre><span class="hljs-function"><span class="hljs-title">hooks</span></span>() {
 
   <span class="hljs-built_in">local</span> hook=<span class="hljs-variable">$1</span>
   <span class="hljs-built_in">test</span> -n <span class="hljs-string">"<span class="hljs-variable">$hook</span>"</span> || abort hook name required
@@ -668,110 +1047,17 @@ get_config_section development
         </li>
         
         
-        <li id="section-22">
+        <li id="section-43">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-22">&#182;</a>
-              </div>
-              <p>Run setup</p>
-
-            </div>
-            
-            <div class="content"><div class='highlight'><pre>
-<span class="hljs-function"><span class="hljs-title">setup</span></span>() {
-  <span class="hljs-built_in">local</span> path=`get_last_config_value path`
-  <span class="hljs-built_in">local</span> repo=`get_last_config_value repo`
-
-  hooks pre-setup <span class="hljs-variable">$path</span>
-
-  <span class="hljs-built_in">log</span> running setup
-  run <span class="hljs-string">"{ test -d <span class="hljs-variable">$path</span> || exit 1; } \
-       &amp;&amp; mkdir -p <span class="hljs-variable">$path</span>/releases <span class="hljs-variable">$path</span>/tmp"</span> \
-    || abort <span class="hljs-string">"failed to set up directories; make sure <span class="hljs-variable">$path</span> exists and is writable"</span>
-
-  <span class="hljs-built_in">log</span> cloning repo
-  run <span class="hljs-string">"test -d <span class="hljs-variable">$path</span>/repo \
-       || { git clone --bare <span class="hljs-variable">$repo</span> <span class="hljs-variable">$path</span>/repo || exit 1; }"</span> \
-    || abort <span class="hljs-string">"failed to clone repo"</span>
-
-  hooks post-setup <span class="hljs-variable">$path</span>
-
-  <span class="hljs-built_in">log</span> setup complete
-}</pre></div></div>
-            
-        </li>
-        
-        
-        <li id="section-23">
-            <div class="annotation">
-              
-              <div class="pilwrap ">
-                <a class="pilcrow" href="#section-23">&#182;</a>
-              </div>
-              <p>Deploy [ref]</p>
-
-            </div>
-            
-            <div class="content"><div class='highlight'><pre>
-<span class="hljs-function"><span class="hljs-title">deploy</span></span>() {
-
-  <span class="hljs-built_in">local</span> ref=<span class="hljs-variable">$1</span>
-  <span class="hljs-built_in">test</span> -n <span class="hljs-string">"<span class="hljs-variable">$ref</span>"</span> || abort no commit, branch or tag specified
-
-  <span class="hljs-built_in">local</span> path=`get_last_config_value path`
-  <span class="hljs-built_in">local</span> release=`date -u <span class="hljs-string">'+%Y-%m-%d-%H-%M-%S'</span>`
-
-  <span class="hljs-built_in">local</span> current_dir=<span class="hljs-string">"<span class="hljs-variable">$path</span>/current"</span>
-  <span class="hljs-built_in">local</span> release_dir=<span class="hljs-string">"<span class="hljs-variable">$path</span>/releases/<span class="hljs-variable">$release</span>"</span>
-  <span class="hljs-built_in">local</span> tmp_dir=<span class="hljs-string">"<span class="hljs-variable">$path</span>/tmp"</span>
-
-  <span class="hljs-built_in">log</span> deploying
-  <span class="hljs-built_in">echo</span> <span class="hljs-string">"    ref: <span class="hljs-variable">$ref</span>"</span>
-  <span class="hljs-built_in">echo</span> <span class="hljs-string">"    release: <span class="hljs-variable">$release</span>"</span>
-
-  hooks pre-deploy <span class="hljs-variable">$current_dir</span>
-
-  <span class="hljs-built_in">log</span> fetching updates
-  run <span class="hljs-string">"cd <span class="hljs-variable">$path</span>/repo \
-       &amp;&amp; git fetch origin '+refs/heads/*:refs/heads/*' \
-       &amp;&amp; git rev-list -n 1 <span class="hljs-variable">$ref</span>"</span> \
-    || abort could not fetch changes
-
-  <span class="hljs-built_in">log</span> <span class="hljs-string">"extracting source at <span class="hljs-variable">$ref</span>"</span>
-  run <span class="hljs-string">"cd <span class="hljs-variable">$path</span>/repo \
-       &amp;&amp; mkdir -p <span class="hljs-variable">$release_dir</span> \
-       &amp;&amp; git archive --output <span class="hljs-variable">$tmp_dir</span>/release-<span class="hljs-variable">$release</span>.tar <span class="hljs-variable">$ref</span> \
-       &amp;&amp; tar -C <span class="hljs-variable">$release_dir</span> -x --file <span class="hljs-variable">$tmp_dir</span>/release-<span class="hljs-variable">$release</span>.tar \
-       &amp;&amp; rm -f <span class="hljs-variable">$tmp_dir</span>/release-*.tar"</span> \
-    || abort could not extract <span class="hljs-built_in">source</span> from repository
-
-  hooks deploy <span class="hljs-variable">$release_dir</span>
-
-  <span class="hljs-built_in">log</span> linking current
-  run <span class="hljs-string">"ln -fns <span class="hljs-variable">$release_dir</span> <span class="hljs-variable">$current_dir</span>"</span> \
-    || abort could not create current symlink
-
-  hooks post-deploy <span class="hljs-variable">$current_dir</span>
-
-  <span class="hljs-built_in">log</span> successfully deployed
-}</pre></div></div>
-            
-        </li>
-        
-        
-        <li id="section-24">
-            <div class="annotation">
-              
-              <div class="pilwrap ">
-                <a class="pilcrow" href="#section-24">&#182;</a>
+                <a class="pilcrow" href="#section-43">&#182;</a>
               </div>
               <p>List deploys</p>
 
             </div>
             
-            <div class="content"><div class='highlight'><pre>
-<span class="hljs-function"><span class="hljs-title">list_deploys</span></span>() {
+            <div class="content"><div class='highlight'><pre><span class="hljs-function"><span class="hljs-title">list_deploys</span></span>() {
   <span class="hljs-built_in">local</span> path=`get_last_config_value path`
   run <span class="hljs-string">"ls -1 <span class="hljs-variable">$path</span>/releases"</span>
 }</pre></div></div>
@@ -779,18 +1065,17 @@ get_config_section development
         </li>
         
         
-        <li id="section-25">
+        <li id="section-44">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-25">&#182;</a>
+                <a class="pilcrow" href="#section-44">&#182;</a>
               </div>
               <p>Require environment arg</p>
 
             </div>
             
-            <div class="content"><div class='highlight'><pre>
-<span class="hljs-function"><span class="hljs-title">require_env</span></span>() {
+            <div class="content"><div class='highlight'><pre><span class="hljs-function"><span class="hljs-title">require_env</span></span>() {
   <span class="hljs-built_in">test</span> -z <span class="hljs-string">"<span class="hljs-variable">$DEPLOY_ENV</span>"</span> &amp;&amp; abort <span class="hljs-string">"&lt;env&gt; required"</span>
   config_section_exists <span class="hljs-variable">$DEPLOY_ENV</span> || abort <span class="hljs-string">"[<span class="hljs-variable">$DEPLOY_ENV</span>] config section not defined"</span>
 }</pre></div></div>
@@ -798,21 +1083,20 @@ get_config_section development
         </li>
         
         
-        <li id="section-26">
+        <li id="section-45">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-26">&#182;</a>
+                <a class="pilcrow" href="#section-45">&#182;</a>
               </div>
               <p>Ensure all changes are committed and pushed before deploying</p>
 
             </div>
             
-            <div class="content"><div class='highlight'><pre>
-<span class="hljs-function"><span class="hljs-title">check_for_local_changes</span></span>() {
-  git --no-pager diff --<span class="hljs-built_in">exit</span>-code --quiet          || abort <span class="hljs-string">"commit or stash your changes before deploying"</span>
+            <div class="content"><div class='highlight'><pre><span class="hljs-function"><span class="hljs-title">check_for_local_changes</span></span>() {
+  git --no-pager diff --<span class="hljs-built_in">exit</span>-code --quiet || abort <span class="hljs-string">"commit or stash your changes before deploying"</span>
   git --no-pager diff --<span class="hljs-built_in">exit</span>-code --quiet --cached || abort <span class="hljs-string">"commit your staged changes before deploying"</span>
-  [ -z <span class="hljs-string">"`git rev-list @{upstream}.. -n 1`"</span> ]       || abort <span class="hljs-string">"push your changes before deploying"</span>
+  [ -z <span class="hljs-string">"`git rev-list @{upstream}.. -n 1`"</span> ] || abort <span class="hljs-string">"push your changes before deploying"</span>
 }
 
 <span class="hljs-function"><span class="hljs-title">deploy_tmp</span></span>() {
@@ -835,18 +1119,17 @@ get_config_section development
         </li>
         
         
-        <li id="section-27">
+        <li id="section-46">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-27">&#182;</a>
+                <a class="pilcrow" href="#section-46">&#182;</a>
               </div>
               <p>Abort with <msg></p>
 
             </div>
             
-            <div class="content"><div class='highlight'><pre>
-<span class="hljs-function"><span class="hljs-title">abort</span></span>() {
+            <div class="content"><div class='highlight'><pre><span class="hljs-function"><span class="hljs-title">abort</span></span>() {
   <span class="hljs-built_in">echo</span>
   echo_color <span class="hljs-variable">$COLOR_RED</span> <span class="hljs-string">"  <span class="hljs-variable">$@</span>"</span> 1&gt;&amp;2
   <span class="hljs-built_in">echo</span>
@@ -860,18 +1143,17 @@ get_config_section development
         </li>
         
         
-        <li id="section-28">
+        <li id="section-47">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-28">&#182;</a>
+                <a class="pilcrow" href="#section-47">&#182;</a>
               </div>
               <p>Log <msg></p>
 
             </div>
             
-            <div class="content"><div class='highlight'><pre>
-<span class="hljs-function"><span class="hljs-title">log</span></span>() {
+            <div class="content"><div class='highlight'><pre><span class="hljs-function"><span class="hljs-title">log</span></span>() {
   <span class="hljs-built_in">echo</span>
   echo_color <span class="hljs-variable">$COLOR_BOLD</span> <span class="hljs-string">"  ○ <span class="hljs-variable">$@</span>"</span>
 }
@@ -882,11 +1164,11 @@ get_config_section development
         </li>
         
         
-        <li id="section-29">
+        <li id="section-48">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-29">&#182;</a>
+                <a class="pilcrow" href="#section-48">&#182;</a>
               </div>
               <p>Source environment file if present</p>
 
@@ -911,11 +1193,11 @@ get_config_section development
         </li>
         
         
-        <li id="section-30">
+        <li id="section-49">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-30">&#182;</a>
+                <a class="pilcrow" href="#section-49">&#182;</a>
               </div>
               <p>Parse arguments</p>
 
@@ -929,12 +1211,13 @@ get_config_section development
       -c|--config) set_config_path <span class="hljs-variable">$1</span>; <span class="hljs-built_in">shift</span> ;;
       -C|--<span class="hljs-built_in">chdir</span>) <span class="hljs-built_in">log</span> <span class="hljs-built_in">cd</span> <span class="hljs-variable">$1</span>; <span class="hljs-built_in">cd</span> <span class="hljs-variable">$1</span>; <span class="hljs-built_in">shift</span> ;;
       <span class="hljs-built_in">exec</span>) require_env; run <span class="hljs-string">"cd `get_last_config_value path`/current &amp;&amp; <span class="hljs-variable">$(env_command)</span> &amp;&amp; <span class="hljs-variable">$@</span>"</span>; <span class="hljs-built_in">exit</span> ;;
-      console) require_env; console; <span class="hljs-built_in">exit</span> ;;
+      console) require_env; console <span class="hljs-variable">$1</span>; <span class="hljs-built_in">exit</span> ;;
       setup) require_env; setup <span class="hljs-variable">$@</span>; <span class="hljs-built_in">exit</span> ;;
       list) require_env; list_deploys; <span class="hljs-built_in">exit</span> ;;
-      ref) require_env; check_for_local_changes; deploy <span class="hljs-string">"<span class="hljs-variable">${1:-`get_last_config_value ref`}</span>"</span>; <span class="hljs-built_in">exit</span> ;;
+      ref) require_env; check_for_local_changes; deploy_ref <span class="hljs-variable">$1</span>; <span class="hljs-built_in">exit</span> ;;
       update) update; <span class="hljs-built_in">exit</span> ;;
       config) config <span class="hljs-variable">$@</span>; <span class="hljs-built_in">exit</span> ;;
+      config-all) require_env; config_all <span class="hljs-variable">$@</span>; <span class="hljs-built_in">exit</span>;;
       *)
         <span class="hljs-keyword">if</span> <span class="hljs-built_in">test</span> -z <span class="hljs-string">"<span class="hljs-variable">$DEPLOY_ENV</span>"</span>; <span class="hljs-keyword">then</span>
           DEPLOY_ENV=<span class="hljs-variable">$arg</span>;
@@ -955,5 +1238,11 @@ main <span class="hljs-string">"<span class="hljs-variable">$@</span>"</span></p
         
     </ul>
   </div>
-</body>
+<script src="https://code.jquery.com/jquery-3.2.1.slim.min.js" integrity="sha256-k2WSCIexGzOj3Euiig+TlR8gA0EmPjuc79OEeY5L45g=" crossorigin="anonymous"></script><script>
+$(function() {
+  $('ul.sections li').not('#title').filter(function() {
+    return $(this).find('.annotation h2, .annotation h3').length;
+  }).addClass('title');
+});
+</script></body>
 </html>

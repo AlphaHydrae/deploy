@@ -20,7 +20,7 @@ var defaults = {
 
 var fixed = {
   root: './docs',
-  wait: 250
+  ignorePattern: /(deploy\.html|public)/
 };
 
 require('live-server').start(_.defaults(env, config, defaults, fixed));
