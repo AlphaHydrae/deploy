@@ -101,10 +101,18 @@ config_section() {
 #
 
 config_get() {
+
   local key=$1
-  test -n "$key" \
-    && config_get_multiple "$key" \
-    | tail -n 1
+  local env_var=$2
+
+  local env_var_value=${!2}
+  if [ -n "$env_var_value" ]; then
+    echo "$env_var_value"
+  else
+    test -n "$key" \
+      && config_get_multiple "$key" \
+      | tail -n 1
+  fi
 }
 
 #
@@ -194,11 +202,11 @@ version() {
 #
 
 ssh_command() {
-  local url="`config_get user`@`config_get host`"
-  local key="`config_get key`"
-  local forward_agent="`config_get forward-agent`"
-  local port="`config_get port`"
-  local needs_tty="`config_get needs_tty`"
+  local url="`config_get user SSH_USER`@`config_get host SSH_HOST`"
+  local key="`config_get key SSH_KEY`"
+  local forward_agent="`config_get forward-agent SSH_FORWARD_AGENT`"
+  local port="`config_get port SSH_PORT`"
+  local needs_tty="`config_get needs_tty SSH_NEEDS_TTY`"
 
   test -n "$forward_agent" && local agent="-A"
   test -n "$key" && local identity="-i $key"
@@ -233,7 +241,7 @@ run() {
 #
 
 console() {
-  local path="`config_get path`/current"
+  local path="`config_get path DEPLOY_PATH`/current"
   local shell="`ssh_command`"
   echo $shell
   $shell -t "cd $path; \$SHELL -il"
@@ -256,11 +264,18 @@ config() {
 #
 
 env_command() {
+  local path=`config_get path DEPLOY_PATH`
+  echo "export ROOT_DIR=$path $(env_variables)"
+}
 
-  local path=`config_get path`
+env_variables() {
   local env="$(echo `config_get_multiple env`|sed 's/\n/ /g')"
 
-  echo "export PATH=$path $env"
+  for forward_env in $(echo `config_get_multiple forward-env`|sed 's/\n/ /g'); do
+    env="$env $forward_env=$(echo "${!forward_env}"|sed 's/ /\\ /g')"
+  done
+
+  echo "$env"
 }
 
 #
@@ -275,8 +290,7 @@ hooks() {
   local dir=$2
   test -n "$dir" || abort working directory required
 
-  local path=`config_get path`
-  local env="$(echo `config_get_multiple env`|sed 's/\n/ /g')"
+  local path=`config_get path DEPLOY_PATH`
   local commands=`config_get_multiple $hook`
 
   log hook $hook
@@ -289,7 +303,7 @@ hooks() {
       IFS="$old_ifs"
 
       run "cd $dir \
-           && export ROOT_DIR=$path $env \
+           && export ROOT_DIR=$path $(env_variables) \
            && $cmd 2>&1" \
         || abort $hook hook failed
 
@@ -307,7 +321,7 @@ hooks() {
 #
 
 setup() {
-  local path=`config_get path`
+  local path=`config_get path DEPLOY_PATH`
   local repo=`config_get repo`
 
   hooks pre-setup $path
@@ -336,7 +350,7 @@ deploy() {
   local ref=$1
   test -n "$ref" || abort no commit, branch or tag specified
 
-  local path=`config_get path`
+  local path=`config_get path DEPLOY_PATH`
   local release=`date -u '+%Y-%m-%d-%H-%M-%S'`
 
   local current_dir="$path/current"
@@ -379,7 +393,7 @@ deploy() {
 #
 
 list_deploys() {
-  local path=`config_get path`
+  local path=`config_get path DEPLOY_PATH`
   run "ls -1 $path/releases"
 }
 
@@ -419,6 +433,10 @@ update() {
   log "updated $VERSION -> `./bin/deploy --version`"
 }
 
+# Source environment file if present
+
+[ -f .env ] && . .env
+
 # Parse arguments
 
 while test $# -ne 0; do
@@ -428,7 +446,7 @@ while test $# -ne 0; do
     -V|--version) version; exit ;;
     -c|--config) set_config_path $1; shift ;;
     -C|--chdir) log cd $1; cd $1; shift ;;
-    exec) require_env; run "cd `config_get path`/current && $(env_command) && $@"; exit ;;
+    exec) require_env; run "cd `config_get path DEPLOY_PATH`/current && $(env_command) && $@"; exit ;;
     console) require_env; console; exit ;;
     setup) require_env; setup $@; exit ;;
     list) require_env; list_deploys; exit ;;
