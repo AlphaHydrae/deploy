@@ -1,0 +1,14 @@
+#section-1, #section-1 .annotation, #section-1 .content, #section-1 .content .highlight, #section-1 .content .highlight pre {
+  margin-top: 0;
+  margin-bottom: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+ul.sections > li {
+  margin-bottom: 1em;
+}
+
+.annotation h2, .annotation h3, .annotation h4, .annotation h5, .annotation h6 {
+  margin-top: 0;
+}

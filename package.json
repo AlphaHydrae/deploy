@@ -1,0 +1,37 @@
+{
+  "name": "deploy",
+  "version": "1.0.1",
+  "description": "Deployment shell script",
+  "private": true,
+  "scripts": {
+    "docs": "npm run docs:clean && npm run docs:gen",
+    "docs:gen": "docco -o docs -e .sh bin/deploy && cat res/docs.css >> docs/docco.css && sleep 0.05 && cp docs/deploy.html docs/index.html && rm -f docs/deploy.html",
+    "docs:clean": "rimraf docs",
+    "docs:serve": "node serve-docs.js",
+    "docs:watch": "onchange \"bin/deploy\" \"res/docs.css\" -- npm run docs:gen",
+    "start": "npm run docs && concurrently \"npm run docs:serve\" \"npm run docs:watch\""
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/AlphaHydrae/deploy.git"
+  },
+  "keywords": [
+    "deploy",
+    "shell"
+  ],
+  "author": "Simon Oulevay (AlphaHydrae) <npm@alphahydrae.com>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/AlphaHydrae/deploy/issues"
+  },
+  "homepage": "https://github.com/AlphaHydrae/deploy#readme",
+  "devDependencies": {
+    "concurrently": "^3.5.0",
+    "docco": "^0.7.0",
+    "docker": "^1.0.0",
+    "live-server": "^1.2.0",
+    "lodash": "^4.17.4",
+    "onchange": "^3.2.1",
+    "rimraf": "^2.6.1"
+  }
+}

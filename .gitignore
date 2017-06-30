@@ -1,4 +1,6 @@
 /.vagrant
 /*.log
+/config.js
 /deploy.conf
+/node_modules
 /tmp
