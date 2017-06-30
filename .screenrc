@@ -1,0 +1,8 @@
+source $HOME/.screenrc
+
+screen -t docs 0
+stuff "npm start"
+screen -t vim 1
+stuff "\${PROJECT_EDITOR-\$EDITOR}\012"
+screen -t zsh 2
+select vim
