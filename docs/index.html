@@ -126,8 +126,9 @@ deploy production rev master
 
   Other commands:
 
-    [env] config [key]       output config file, a section, or one value
-    &lt;env&gt; config-all [key]   output all values of a config key <span class="hljs-keyword">in</span> an environment
+    [env] config [key]       output whole config file or the value of one key
+    &lt;env&gt; config-all &lt;key&gt;   output all values of a config key <span class="hljs-keyword">in</span> an environment
+    [env] config-section     output a config section
     update [options] [rev]   update this script to the latest version
 
   Examples:
@@ -969,6 +970,7 @@ deploy --config foo.conf production setup
       update) update_self <span class="hljs-variable">$@</span>; <span class="hljs-built_in">exit</span> ;;
       config) config <span class="hljs-variable">$@</span>; <span class="hljs-built_in">exit</span> ;;
       config-all) config_all <span class="hljs-variable">$@</span>; <span class="hljs-built_in">exit</span> ;;
+      config-section) config_section <span class="hljs-variable">$@</span>; <span class="hljs-built_in">exit</span> ;;
 
       *)
         <span class="hljs-keyword">if</span> <span class="hljs-built_in">test</span> -z <span class="hljs-string">"<span class="hljs-variable">$DEPLOY_ENV</span>"</span>; <span class="hljs-keyword">then</span>
@@ -986,10 +988,15 @@ deploy --config foo.conf production setup
 
 <span class="hljs-function"><span class="hljs-title">set_config_path</span></span>() {
   <span class="hljs-built_in">local</span> file=<span class="hljs-string">"<span class="hljs-variable">$1</span>"</span>
+  check_config_file_valid <span class="hljs-string">"<span class="hljs-variable">$file</span>"</span>
+  DEPLOY_CONFIG=<span class="hljs-string">"<span class="hljs-variable">$file</span>"</span>
+}
+
+<span class="hljs-function"><span class="hljs-title">check_config_file_valid</span></span>() {
+  <span class="hljs-built_in">local</span> file=<span class="hljs-string">"<span class="hljs-variable">$1</span>"</span>
   <span class="hljs-built_in">test</span> -e <span class="hljs-string">"<span class="hljs-variable">$file</span>"</span> || abort <span class="hljs-string">"invalid config file: <span class="hljs-variable">$file</span> does not exist"</span>
   <span class="hljs-built_in">test</span> -f <span class="hljs-string">"<span class="hljs-variable">$file</span>"</span> || abort <span class="hljs-string">"invalid config file: <span class="hljs-variable">$file</span> is not a file"</span>
   <span class="hljs-built_in">test</span> -r <span class="hljs-string">"<span class="hljs-variable">$file</span>"</span> || abort <span class="hljs-string">"invalid config file: <span class="hljs-variable">$file</span> cannot be read"</span>
-  DEPLOY_CONFIG=<span class="hljs-string">"<span class="hljs-variable">$file</span>"</span>
 }</pre></div></div>
             
         </li>
@@ -1013,6 +1020,10 @@ deploy production setup  <span class="hljs-comment"># all good</span>
             <div class="content"><div class='highlight'><pre><span class="hljs-function"><span class="hljs-title">require_env</span></span>() {
   <span class="hljs-built_in">test</span> -n <span class="hljs-string">"<span class="hljs-variable">$DEPLOY_ENV</span>"</span> || abort <span class="hljs-string">"&lt;env&gt; required"</span>
   config_section_exists <span class="hljs-variable">$DEPLOY_ENV</span> || abort <span class="hljs-string">"[<span class="hljs-variable">$DEPLOY_ENV</span>] config section not defined"</span>
+}
+
+<span class="hljs-function"><span class="hljs-title">require_config</span></span>() {
+  check_config_file_valid <span class="hljs-string">"<span class="hljs-variable">$DEPLOY_CONFIG</span>"</span>
 }</pre></div></div>
             
         </li>
@@ -1399,7 +1410,7 @@ You should define <strong>deploy hooks</strong> to build your application or ins
                 <a class="pilcrow" href="#section-56">&#182;</a>
               </div>
               <ul>
-<li><p>If called with <strong>no environment and no arguments</strong>, it prints the whole configuration file:</p>
+<li><p>If called with <strong>no environment and no argument</strong>, it prints the whole configuration file:</p>
 <pre><code class="lang-sh">$&gt; deploy config
 []
 user dev
@@ -1414,8 +1425,9 @@ port 222
             </div>
             
             <div class="content"><div class='highlight'><pre>  <span class="hljs-keyword">if</span> <span class="hljs-built_in">test</span> <span class="hljs-variable">$#</span> -eq 0; <span class="hljs-keyword">then</span>
-    <span class="hljs-keyword">if</span> <span class="hljs-built_in">test</span> -z <span class="hljs-string">"<span class="hljs-variable">$DEPLOY_ENV</span>"</span>; <span class="hljs-keyword">then</span>
-      cat <span class="hljs-string">"<span class="hljs-variable">$DEPLOY_CONFIG</span>"</span></pre></div></div>
+    <span class="hljs-built_in">test</span> -z <span class="hljs-string">"<span class="hljs-variable">$DEPLOY_ENV</span>"</span> || abort <span class="hljs-string">"[env] not supported without [key] for this command"</span>
+    require_config
+    cat <span class="hljs-string">"<span class="hljs-variable">$DEPLOY_CONFIG</span>"</span></pre></div></div>
             
         </li>
         
@@ -1427,35 +1439,12 @@ port 222
                 <a class="pilcrow" href="#section-57">&#182;</a>
               </div>
               <ul>
-<li><p>If <strong>preceded by the environment</strong>, it prints all key/value pairs in that environment (including inherited ones but not including the <code>inherits</code> keys):</p>
-<pre><code class="lang-sh">$&gt; deploy production config
-user root
-port 222
-</code></pre>
-</li>
-</ul>
-
-            </div>
-            
-            <div class="content"><div class='highlight'><pre>    <span class="hljs-keyword">else</span>
-      get_config_section <span class="hljs-string">"<span class="hljs-variable">$DEPLOY_ENV</span>"</span>
-    <span class="hljs-keyword">fi</span></pre></div></div>
-            
-        </li>
-        
-        
-        <li id="section-58">
-            <div class="annotation">
-              
-              <div class="pilwrap ">
-                <a class="pilcrow" href="#section-58">&#182;</a>
-              </div>
-              <ul>
 <li><p>If called with <strong>the environment and a key</strong>, it prints the last value of that key for that environment
 (only the last value is printed even for a multiple-value key):</p>
 <pre><code class="lang-sh">$&gt; deploy production config user
 root
 </code></pre>
+<p>Exits with status 1 if no value is found for the key.</p>
 </li>
 </ul>
 
@@ -1470,11 +1459,11 @@ root
         </li>
         
         
-        <li id="section-59">
+        <li id="section-58">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-59">&#182;</a>
+                <a class="pilcrow" href="#section-58">&#182;</a>
               </div>
               <h3 id="-env-config-all-key-"><code>&lt;env&gt; config-all &lt;key&gt;</code></h3>
 <p>Print all values of a config key in the current environment and its inherited environments
@@ -1483,6 +1472,7 @@ root
 dev
 root
 </code></pre>
+<p>Exits with status 1 if no value is found for the key.</p>
 
             </div>
             
@@ -1494,6 +1484,26 @@ root
 
   <span class="hljs-built_in">local</span> values=$(get_all_config_key_values <span class="hljs-string">"<span class="hljs-variable">$key</span>"</span>)
   <span class="hljs-built_in">test</span> -n <span class="hljs-string">"<span class="hljs-variable">$values</span>"</span> &amp;&amp; <span class="hljs-built_in">echo</span> <span class="hljs-string">"<span class="hljs-variable">$values</span>"</span>
+}</pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-59">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-59">&#182;</a>
+              </div>
+              <h3 id="-env-config-section-"><code>[env] config-section</code></h3>
+<p>Print all values of a config section “as is” (with no inheritance).
+If no environment is specified, the default config section is printed.</p>
+<p>Exits with status 1 if the config section is not found (including the default one).</p>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre><span class="hljs-function"><span class="hljs-title">config_section</span></span>() {
+  config_section_exists <span class="hljs-string">"<span class="hljs-variable">$DEPLOY_ENV</span>"</span> &amp;&amp; get_config_section <span class="hljs-string">"<span class="hljs-variable">$DEPLOY_ENV</span>"</span>
 }</pre></div></div>
             
         </li>

@@ -79,8 +79,9 @@ usage() {
 
   Other commands:
 
-    [env] config [key]       output config file, a section, or one value
-    <env> config-all [key]   output all values of a config key in an environment
+    [env] config [key]       output whole config file or the value of one key
+    <env> config-all <key>   output all values of a config key in an environment
+    [env] config-section     output a config section
     update [options] [rev]   update this script to the latest version
 
   Examples:
@@ -548,6 +549,7 @@ main() {
       update) update_self $@; exit ;;
       config) config $@; exit ;;
       config-all) config_all $@; exit ;;
+      config-section) config_section $@; exit ;;
 
       *)
         if test -z "$DEPLOY_ENV"; then
@@ -565,10 +567,15 @@ main() {
 
 set_config_path() {
   local file="$1"
+  check_config_file_valid "$file"
+  DEPLOY_CONFIG="$file"
+}
+
+check_config_file_valid() {
+  local file="$1"
   test -e "$file" || abort "invalid config file: $file does not exist"
   test -f "$file" || abort "invalid config file: $file is not a file"
   test -r "$file" || abort "invalid config file: $file cannot be read"
-  DEPLOY_CONFIG="$file"
 }
 
 
@@ -588,6 +595,10 @@ set_config_path() {
 require_env() {
   test -n "$DEPLOY_ENV" || abort "<env> required"
   config_section_exists $DEPLOY_ENV || abort "[$DEPLOY_ENV] config section not defined"
+}
+
+require_config() {
+  check_config_file_valid "$DEPLOY_CONFIG"
 }
 
 # <a name="setup"></a>
@@ -737,7 +748,7 @@ require_no_local_changes() {
 #
 # Print values from your `deploy.conf` configuration file.
 config() {
-  # * If called with **no environment and no arguments**, it prints the whole configuration file:
+  # * If called with **no environment and no argument**, it prints the whole configuration file:
   #
   #   ```sh
   #   $> deploy config
@@ -749,20 +760,9 @@ config() {
   #   port 222
   #   ```
   if test $# -eq 0; then
-    if test -z "$DEPLOY_ENV"; then
-      cat "$DEPLOY_CONFIG"
-
-    # * If **preceded by the environment**, it prints all key/value pairs in that environment (including inherited ones but not including the `inherits` keys):
-    #
-    #   ```sh
-    #   $> deploy production config
-    #   user root
-    #   port 222
-    #   ```
-    else
-      get_config_section "$DEPLOY_ENV"
-    fi
-
+    test -z "$DEPLOY_ENV" || abort "[env] not supported without [key] for this command"
+    require_config
+    cat "$DEPLOY_CONFIG"
   # * If called with **the environment and a key**, it prints the last value of that key for that environment
   #   (only the last value is printed even for a multiple-value key):
   #
@@ -770,6 +770,8 @@ config() {
   #   $> deploy production config user
   #   root
   #   ```
+  #
+  #   Exits with status 1 if no value is found for the key.
   else
     local value=$(get_last_config_key_value $1)
     test -n "$value" && echo "$value"
@@ -786,6 +788,8 @@ config() {
 # dev
 # root
 # ```
+#
+# Exits with status 1 if no value is found for the key.
 config_all() {
   require_env
 
@@ -794,6 +798,16 @@ config_all() {
 
   local values=$(get_all_config_key_values "$key")
   test -n "$values" && echo "$values"
+}
+
+# ### `[env] config-section`
+#
+# Print all values of a config section "as is" (with no inheritance).
+# If no environment is specified, the default config section is printed.
+#
+# Exits with status 1 if the config section is not found (including the default one).
+config_section() {
+  config_section_exists "$DEPLOY_ENV" && get_config_section "$DEPLOY_ENV"
 }
 
 # ### `<env> console [path]`

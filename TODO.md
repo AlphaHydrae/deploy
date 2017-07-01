@@ -10,4 +10,3 @@
 * support a symlink for the configuration file
 * create a deployment log (include commit)
 * add commands to manipulate previous releases (print info, rollback)
-* add config-section command

@@ -31,6 +31,7 @@ Shamelessly inspired by: [visionmedia/deploy](https://github.com/visionmedia/dep
   - [`<env> rev [-f|--force] [rev]`](#env-rev--f--force-rev)
   - [`[env] config [key]`](#env-config-key)
   - [`<env> config-all <key>`](#env-config-all-key)
+  - [`[env] config-section`](#env-config-section)
   - [`<env> console [path]`](#env-console-path)
   - [`<env> exec <cmd>`](#env-exec-cmd)
   - [`<env> list`](#env-list)
@@ -399,7 +400,7 @@ This is what **deploy** will do during deployment:
 
 Print values from your `deploy.conf` configuration file.
 
-* If called with **no environment and no arguments**, it prints the whole configuration file:
+* If called with **no environment and no argument**, it prints the whole configuration file:
 
   ```sh
   $> deploy config
@@ -407,14 +408,6 @@ Print values from your `deploy.conf` configuration file.
   user dev
 
   [production]
-  user root
-  port 222
-  ```
-
-* If **preceded by the environment**, it prints all key/value pairs in that environment (including inherited ones but not including the `inherits` keys):
-
-  ```sh
-  $> deploy production config
   user root
   port 222
   ```
@@ -427,6 +420,8 @@ Print values from your `deploy.conf` configuration file.
   root
   ```
 
+  Exits with status 1 if no value is found for the key.
+
 ### `<env> config-all <key>`
 
 Print all values of a config key in the current environment and its inherited environments
@@ -437,6 +432,15 @@ $> deploy production config-all user
 dev
 root
 ```
+
+Exits with status 1 if no value is found for the key.
+
+### `[env] config-section`
+
+Print all values of a config section "as is" (with no inheritance).
+If no environment is specified, the default config section is printed.
+
+Exits with status 1 if the config section is not found (including the default one).
 
 ### `<env> console [path]`
 
