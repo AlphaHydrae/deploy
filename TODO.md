@@ -1,5 +1,7 @@
 # TODO
 
+* rename ref to rev
+* update README
 * show h3 in toc
 * do not run pre-deploy hooks for first deployment
 * add command line arguments for ssh options and others
