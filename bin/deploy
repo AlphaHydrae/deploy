@@ -9,7 +9,7 @@
 # Shamelessly inspired by: [visionmedia/deploy](https://github.com/visionmedia/deploy)
 #
 # <ul id="toc" style="display:none;"></ul>
-VERSION=1.0.1
+VERSION=2.0.0
 
 COLORS=
 COLOR_BOLD=1
