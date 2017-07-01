@@ -9,7 +9,11 @@
     "docs:clean": "rimraf docs",
     "docs:serve": "node serve-docs.js",
     "docs:watch": "onchange \"bin/deploy\" \"res/**.*\" -- npm run docs:gen",
-    "start": "npm run docs && concurrently \"npm run docs:serve\" \"npm run docs:watch\""
+    "readme": "npm run readme:build && npm run readme:doctoc",
+    "readme:build": "node build-readme.js",
+    "readme:doctoc": "doctoc --github --notitle --maxlevel 3 README.md",
+    "readme:watch": "onchange \"bin/deploy\" \"build-readme.js\" \"res/HEADER.md\" -- npm run readme",
+    "start": "concurrently \"npm run docs\" \"npm run readme\" && concurrently \"npm run docs:serve\" \"npm run docs:watch\" \"npm run readme:watch\""
   },
   "repository": {
     "type": "git",
@@ -29,6 +33,7 @@
     "concurrently": "^3.5.0",
     "docco": "^0.7.0",
     "docker": "^1.0.0",
+    "doctoc": "^1.3.0",
     "fs-extra": "^3.0.1",
     "live-server": "^1.2.0",
     "lodash": "^4.17.4",

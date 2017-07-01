@@ -96,18 +96,18 @@ EOF
 #
 # ```sh
 # FROM=https://raw.githubusercontent.com && \
-# curl -sSLo /usr/local/bin/deploy \
-# $FROM/AlphaHydrae/deploy/master/bin/deploy \
-# && chmod +x /usr/local/bin/deploy
+#   curl -sSLo /usr/local/bin/deploy \
+#   $FROM/AlphaHydrae/deploy/master/bin/deploy \
+#   && chmod +x /usr/local/bin/deploy
 # ```
 #
 # With wget:
 #
 # ```sh
 # FROM=https://raw.githubusercontent.com && \
-# wget -qO /usr/local/bin/deploy \
-# $FROM/AlphaHydrae/deploy/master/bin/deploy \
-# && chmod +x /usr/local/bin/deploy
+#   wget -qO /usr/local/bin/deploy \
+#   $FROM/AlphaHydrae/deploy/master/bin/deploy \
+#   && chmod +x /usr/local/bin/deploy
 # ```
 #
 # Or [download it](https://raw.githubusercontent.com/AlphaHydrae/deploy/master/bin/deploy) yourself.

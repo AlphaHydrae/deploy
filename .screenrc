@@ -1,6 +1,6 @@
 source $HOME/.screenrc
 
-screen -t docs 0
+screen -t start 0
 stuff "npm start"
 screen -t vim 1
 stuff "\${PROJECT_EDITOR-\$EDITOR}\012"
