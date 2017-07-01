@@ -9,8 +9,8 @@ ul.sections > li.title > div.content {
   padding-bottom: 0;
 }
 
-ul.sections > li {
-  margin-bottom: 1em;
+ul.sections > li.title {
+  margin-top: 1em;
 }
 
 #title h1 {

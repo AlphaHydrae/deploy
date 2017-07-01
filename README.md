@@ -21,7 +21,7 @@ Inspired by [visionmedia/deploy][visionmedia].
   - [path](#path)
   - [env](#env)
   - [forward-agent](#forward-agent)
-  - [needs_tty](#needs_tty)
+  - [tty](#tty)
 - [Hooks](#hooks)
   - [pre-setup](#pre-setup)
   - [post-setup](#post-setup)
@@ -151,10 +151,10 @@ command, put `forward-agent yes` in the relevant config sections.
 Now the deploy script will invoke `ssh -A` when deploying and there's
 no need to keep SSH keys on your servers.
 
-### needs_tty
+### tty
 
 If your deployment scripts require any user interaction (which they shouldn't, but
-often do) you'll probably want SSH to allocate a tty for you. Put `needs_tty yes`
+often do) you'll probably want SSH to allocate a tty for you. Put `tty yes`
 in the config section if you'd like the deploy script to invoke `ssh -t` and ensure
 you have a tty available.
 
