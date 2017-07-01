@@ -1,6 +1,5 @@
 # TODO
 
-* rename ref to rev
 * do not run pre-deploy hooks for first deployment
 * add command line arguments for ssh options and others
 * fix inheritance (no duplicates)

@@ -4,6 +4,7 @@
   "description": "Deployment shell script",
   "private": true,
   "scripts": {
+    "bump": "node bump.js",
     "docs": "npm run docs:clean && npm run docs:gen",
     "docs:gen": "docco -o tmp/docs -e .sh bin/deploy && node process-docs.js && sleep 0.5 && touch docs/index.html",
     "docs:clean": "rimraf docs",
@@ -30,6 +31,7 @@
   },
   "homepage": "https://github.com/AlphaHydrae/deploy#readme",
   "devDependencies": {
+    "chalk": "^2.0.1",
     "concurrently": "^3.5.0",
     "docco": "^0.7.0",
     "docker": "^1.0.0",
@@ -38,6 +40,7 @@
     "live-server": "^1.2.0",
     "lodash": "^4.17.4",
     "onchange": "^3.2.1",
-    "rimraf": "^2.6.1"
+    "rimraf": "^2.6.1",
+    "semver": "^5.3.0"
   }
 }
