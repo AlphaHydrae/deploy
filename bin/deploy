@@ -2,6 +2,8 @@
 
 # **_A (magic) shell script to deploy Git repositories_**
 #
+# Read the [annotated source](https://alphahydrae.github.io/deploy/)
+#
 # Repository: [AlphaHydrae/deploy](https://github.com/AlphaHydrae/deploy) ([MIT Licensed](https://opensource.org/licenses/MIT))
 #
 # Shamelessly inspired by: [visionmedia/deploy](https://github.com/visionmedia/deploy)
@@ -930,6 +932,7 @@ cleanup() {
 
 
 
+# <!-- annotated-source-only -->
 # ## Output & exit codes
 #
 # **deploy** will log various messages indicating what it is doing.
@@ -988,3 +991,4 @@ main $@
 # ## About this page
 #
 # Documentation generated with [Docco](http://ashkenas.com/docco/).
+# <!-- annotated-source-only-end -->

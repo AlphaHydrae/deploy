@@ -4,6 +4,8 @@
 
 **_A (magic) shell script to deploy Git repositories_**
 
+Read the [annotated source](https://alphahydrae.github.io/deploy/)
+
 Repository: [AlphaHydrae/deploy](https://github.com/AlphaHydrae/deploy) ([MIT Licensed](https://opensource.org/licenses/MIT))
 
 Shamelessly inspired by: [visionmedia/deploy](https://github.com/visionmedia/deploy)
@@ -33,8 +35,6 @@ Shamelessly inspired by: [visionmedia/deploy](https://github.com/visionmedia/dep
   - [`<env> exec <cmd>`](#env-exec-cmd)
   - [`<env> list`](#env-list)
   - [`update [--prefix dir] [--path path] [ref]`](#update---prefix-dir---path-path-ref)
-- [Output & exit codes](#output--exit-codes)
-- [About this page](#about-this-page)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
@@ -502,21 +502,3 @@ If the installation path does not already exist, its parent must be a writable d
 To perform the update, **deploy** will download its Git repository into a temporary directory that will be cleaned up when the update is done (or fails).
 
 The correct revision of the script is then copied to the installation path and made executable.
-
-## Output & exit codes
-
-**deploy** will log various messages indicating what it is doing.
-
-Those messages are printed in colors by default on interactive terminals (this can be disabled with the `--color never` option or `$DEPLOY_COLOR` variable).
-
-* **Deployment progress updates** will be printed in bold.
-
-* **Commands executed** on the host will be printed in yellow.
-
-* **Errors** will be printed in red.
-
-If **deploy** encounters an unrecoverable error, it will log an error and exit with status 1.
-
-## About this page
-
-Documentation generated with [Docco](http://ashkenas.com/docco/).

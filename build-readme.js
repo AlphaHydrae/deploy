@@ -14,9 +14,18 @@ lines = _.map(lines, line => !line.trim().length || !line.match(/^\s*#/) ? '' : 
 // Remove comment markers and leading whitespace
 lines = _.map(lines, line => line.replace(/^\s*# ?/, ''));
 
-// Add a blank line before each header
+let ignore = false;
 lines = _.reduce(lines, (memo, line, i) => {
+  // Collapse successive blank lines to one blank line
   if (i >= 1 && !memo[memo.length - 1].trim().length && !line.trim().length) {
+    return memo;
+  } else if (!ignore && line.match(/<!--\s+annotated-source-only\s+-->/)) {
+    ignore = true;
+    return memo;
+  } else if (ignore && line.match(/<!--\s+annotated-source-only-end\s+-->/)) {
+    ignore = false;
+    return memo;
+  } else if (ignore) {
     return memo;
   }
 
