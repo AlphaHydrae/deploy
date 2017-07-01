@@ -9,6 +9,5 @@
 * make configuration file optional
 * support a symlink for the configuration file
 * create a deployment log (include commit)
-* make sure `get_all_config_values` does not return a blank line when no value is found
 * add commands to manipulate previous releases (print info, rollback)
 * add config-section command

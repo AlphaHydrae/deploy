@@ -52,10 +52,12 @@
             </div>
             
             <div class="content"><div class='highlight'><pre>VERSION=1.0.1
+
 COLORS=
 COLOR_BOLD=1
 COLOR_RED=31
 COLOR_YELLOW=33
+
 DEFAULT_CONFIG=./deploy.conf
 DEFAULT_UPDATE_REPO=git://github.com/AlphaHydrae/deploy.git</pre></div></div>
             
@@ -1460,7 +1462,8 @@ root
             </div>
             
             <div class="content"><div class='highlight'><pre>  <span class="hljs-keyword">else</span>
-    get_last_config_key_value <span class="hljs-variable">$1</span>
+    <span class="hljs-built_in">local</span> value=$(get_last_config_key_value <span class="hljs-variable">$1</span>)
+    <span class="hljs-built_in">test</span> -n <span class="hljs-string">"<span class="hljs-variable">$value</span>"</span> &amp;&amp; <span class="hljs-built_in">echo</span> <span class="hljs-string">"<span class="hljs-variable">$value</span>"</span>
   <span class="hljs-keyword">fi</span>
 }</pre></div></div>
             
@@ -1485,7 +1488,12 @@ root
             
             <div class="content"><div class='highlight'><pre><span class="hljs-function"><span class="hljs-title">config_all</span></span>() {
   require_env
-  get_all_config_key_values <span class="hljs-string">"<span class="hljs-variable">$1</span>"</span>
+
+  <span class="hljs-built_in">local</span> key=<span class="hljs-string">"<span class="hljs-variable">$1</span>"</span>
+  <span class="hljs-built_in">test</span> -n <span class="hljs-string">"<span class="hljs-variable">$key</span>"</span> || abort <span class="hljs-string">"&lt;key&gt; missing"</span>
+
+  <span class="hljs-built_in">local</span> values=$(get_all_config_key_values <span class="hljs-string">"<span class="hljs-variable">$key</span>"</span>)
+  <span class="hljs-built_in">test</span> -n <span class="hljs-string">"<span class="hljs-variable">$values</span>"</span> &amp;&amp; <span class="hljs-built_in">echo</span> <span class="hljs-string">"<span class="hljs-variable">$values</span>"</span>
 }</pre></div></div>
             
         </li>
