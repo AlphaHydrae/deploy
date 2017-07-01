@@ -8,7 +8,7 @@
     "docs:gen": "docco -o tmp/docs -e .sh bin/deploy && node process-docs.js && sleep 0.5 && touch docs/index.html",
     "docs:clean": "rimraf docs",
     "docs:serve": "node serve-docs.js",
-    "docs:watch": "onchange \"bin/deploy\" \"res/**.*\" -- npm run docs:gen",
+    "docs:watch": "onchange \"bin/deploy\" \"res/docs.*\" -- npm run docs:gen",
     "readme": "npm run readme:build && npm run readme:doctoc",
     "readme:build": "node build-readme.js",
     "readme:doctoc": "doctoc --github --notitle --maxlevel 3 README.md",
