@@ -82,8 +82,8 @@ Read on to learn what to write in the [configuration file](#configuration-file) 
 With curl:
 
 ```sh
-FROM=https://raw.githubusercontent.com && \
-  curl -sSLo /usr/local/bin/deploy \
+FROM=https://raw.githubusercontent.com \
+  && curl -sSLo /usr/local/bin/deploy \
   $FROM/AlphaHydrae/deploy/master/bin/deploy \
   && chmod +x /usr/local/bin/deploy
 ```
@@ -91,8 +91,8 @@ FROM=https://raw.githubusercontent.com && \
 With wget:
 
 ```sh
-FROM=https://raw.githubusercontent.com && \
-  wget -qO /usr/local/bin/deploy \
+FROM=https://raw.githubusercontent.com \
+  && wget -qO /usr/local/bin/deploy \
   $FROM/AlphaHydrae/deploy/master/bin/deploy \
   && chmod +x /usr/local/bin/deploy
 ```
