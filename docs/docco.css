@@ -517,8 +517,35 @@ pre .hljs-tex .hljs-formula {
   opacity: 0.5;
 }
 
-ul.sections > li.title > div.content {
-  margin-top: 2.6em;
+a {
+  color: #2b72e2;
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+strong {
+  font-weight: bold;
+}
+
+ul.sections > li.title-2 > div.content {
+  margin-top: 3.2em;
+}
+
+ul.sections > li.title-3 > div.content {
+  margin-top: 2.8em;
+}
+
+ul.sections > li > div.annotation > ul:nth-child(2) {
+  margin-top: 0.2em;
+  margin-bottom: 0;
+}
+
+ul.sections > li > div.annotation > ul:nth-child(2) li {
+  margin-top: 0;
+  margin-bottom: 0;
 }
 
 #section-1, #section-1 .annotation, #section-1 .content, #section-1 .content .highlight, #section-1 .content .highlight pre {

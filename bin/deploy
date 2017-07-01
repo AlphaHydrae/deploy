@@ -1,21 +1,62 @@
 #!/usr/bin/env bash
 
-# **_A shell script to deploy Git repositories._**
+# **_A (magic) shell script to deploy Git repositories_**
 #
-# * **Source:** https://github.com/AlphaHydrae/deploy
-# * **Originally by:** https://github.com/visionmedia/deploy
-
+# Repository: [AlphaHydrae/deploy](https://github.com/AlphaHydrae/deploy) ([MIT Licensed](https://opensource.org/licenses/MIT))
+#
+# Shamelessly inspired by: [visionmedia/deploy](https://github.com/visionmedia/deploy)
+#
+# <ul id="toc" style="display:none;"></ul>
 VERSION="1.0.1"
-
-
-
-
+COLORS=
+COLOR_BOLD=1
+COLOR_RED=31
+COLOR_YELLOW=33
+DEFAULT_CONFIG=./deploy.conf
+DEFAULT_UPDATE_REPO=git://github.com/AlphaHydrae/deploy.git
 
 # ## Usage
+#
+# **deploy** is a shell script to deploy your Git projects through SSH.
+# Add a `deploy.conf` file in your project's directory.
+# Here's an example for a Node.js project:
+#
+#     # deploy.conf
+#     [production]
+#     repo  https://github.com/me/my-app
+#     host  my.server.com
+#     user  deploy
+#     path  /var/www/app
+#     # describe how to deploy your app
+#     env          NODE_ENV=production
+#     deploy       npm install --production
+#     post-deploy  npm start
+#
+# **deploy** is language-agnostic.
+# For a Rails project, you could replace the last 3 lines with:
+#
+#     env          RAILS_ENV=production
+#     deploy       bundle install --without development test
+#     deploy       rake assets:precompile
+#     post-deploy  rails server
+#
+# Now run **deploy**!
+#
+# ```sh
+# deploy production setup
+# deploy production ref master
+# ```
+#
+# It will:
+# * Connect to `my.server.com` as the `deploy` user through SSH
+# * The `setup` command will set up a deployment structure and clone your repository
+# * The second `ref` command will checkout the latest version of your `master` branch and run the deployment hooks you defined (`deploy` and `post-deploy` in the configuration file)
+#
+# Read on to learn what to write in the [configuration file](#configuration-file) or how to use each [sub-command](#sub-commands).
 usage() {
   cat <<-EOF
 
-  Usage: deploy [options] <env> <command>
+  Usage: deploy [options] [env] <command>
 
   Options:
 
@@ -24,16 +65,19 @@ usage() {
     -V, --version         output program version
     -h, --help            output help information
 
-  Commands:
+  Deployment commands:
 
-    <env> setup              run remote setup commands
-    <env> ref [ref]          deploy a release (commit, branch or tag)
-    [env] config [key]       output config file, a section, or one value
-    <env> config-all [key]   output all values of a config key in an environment
-    <env> console [path]     open an ssh session to the host
-    <env> exec <cmd>         execute the given command on the host
-    <env> list               list previous deploy commits
-    update                   update this script to the latest version
+    <env> setup                   run remote setup commands
+    <env> ref [-f|--force] [ref]  deploy a release (commit, branch or tag)
+    <env> console [path]          open an ssh session to the host
+    <env> exec <cmd>              execute the given command on the host
+    <env> list                    list previous deploy commits
+
+  Other commands:
+
+    [env] config [key]                             output config file, a section, or one value
+    <env> config-all [key]                         output all values of a config key in an environment
+    update [--prefix prefix] [--path path] [ref]   update this script to the latest version
 
   Examples:
 
@@ -41,8 +85,486 @@ usage() {
     deploy dev ref master         deploy the master branch in the dev env
     deploy prod exec pm2 status   run 'pm2 status' in the prod env
     deploy dev config user        get the value of the user key in the dev env
+    deploy update                 update the deploy script
 
 EOF
+}
+
+# ## Installation
+#
+# With curl:
+#
+# ```sh
+# FROM=https://raw.githubusercontent.com && \
+# curl -sSLo /usr/local/bin/deploy \
+# $FROM/AlphaHydrae/deploy/master/bin/deploy \
+# && chmod +x /usr/local/bin/deploy
+# ```
+#
+# With wget:
+#
+# ```sh
+# FROM=https://raw.githubusercontent.com && \
+# wget -qO /usr/local/bin/deploy \
+# $FROM/AlphaHydrae/deploy/master/bin/deploy \
+# && chmod +x /usr/local/bin/deploy
+# ```
+#
+# Or [download it](https://raw.githubusercontent.com/AlphaHydrae/deploy/master/bin/deploy) yourself.
+
+# ## Requirements
+#
+# **deploy** is a one-file bash script which requires the following commands: `cat`, `cut`, `date`, `git`, `grep`, `ls`, `mkdir`, `sed`, `ssh`, `tail` and `tar`.
+# Most bash shells have all of those out of the box except perhaps [Git](https://git-scm.com).
+#
+# It also optionally requires the `chmod`, `cp` and `mktemp` commands to update itself.
+check_requirements() {
+  for com in cat cut date git grep ls mkdir sed ssh tail tar; do
+    require_command $com
+  done
+}
+
+require_command() {
+  command_exists "$1" || abort "$1 command not found"
+}
+
+command_exists() {
+  command -v "$1" >/dev/null 2>&1
+}
+
+# ## Configuration file
+#
+# **deploy** reads its main configuration from a `deploy.conf` file in the current directory (this can be customized with [environment variables](#environment-variables) and [command line options](#general-options)).
+config_file_exists() {
+  test -f "$DEPLOY_CONFIG" && test -r "$DEPLOY_CONFIG"
+}
+
+# The configuration file is basically a series of sections containing key/value pairs:
+#
+#     # deploy.conf
+#     [staging]
+#     host  staging.example.com
+#     user  test
+#     # how to deploy
+#     post-deploy  ./run-test.sh
+#
+#     [production]
+#     host 192.168.1.42
+#     user root
+#     # how to deploy
+#     env           NODE_ENV=production
+#     deploy        npm install --production
+#     deploy        npm run build
+#     post-deploy   pm2 start pm2.json
+#
+# Each named section, delimited by `[name]`, represents an **environment** (i.e. a host machine) to deploy to,
+# in this example the *staging* and *production* environments.
+#
+# Lines beginning with `#` are comments and are ignored.
+#
+# Other lines are key/value pairs.
+# A key is a sequence of characters containing no whitespace, followed by at least one space.
+#
+# For example, in the line `deploy npm run build`, the key is `deploy` and its value is `npm run build`.
+config_section_exists() {
+  grep "^\[$1\]$" "$DEPLOY_CONFIG" &> /dev/null
+}
+
+get_config_section() {
+  local env="$1"
+
+  grep "^\[$env\]$" -A 999 "$DEPLOY_CONFIG" \
+    | tail -n +2 \
+    | grep -v "^ *#" \
+    | grep -v "^ *$" \
+    | sed "/^\[/q" \
+    | sed "/^\[/d"
+}
+
+get_config_key_values_in_env() {
+
+  local key="$1"
+  local env="$2"
+
+  get_config_section $env \
+    | grep "^$key\s\s*[^\s]" \
+    | cut -d ' ' -f 2-999 \
+    | sed "s/^ *//" \
+    | sed "s/ *$//"
+}
+
+# ### Single-value and multiple-value keys
+#
+# Some keys like `repo`, `host`, `port` or `user` are simple configuration properties that have one value per environment.
+# If multiple values are found, the last one is used.
+get_last_config_key_value() {
+
+  local key=$1
+  local env_var=$(get_config_key_env_var $key)
+
+  # These keys can be overriden through an environment variable of the same name in uppercase and prefixed by `DEPLOY_`.
+  # For example, the environment variable to override the `repo` key is `DEPLOY_REPO`.
+  local env_var_value=${!env_var}
+  if test -n "$env_var_value"; then
+    echo "$env_var_value"
+  else
+    test -n "$key" \
+      && get_all_config_key_values "$key" \
+      | tail -n 1
+  fi
+}
+
+get_config_key_env_var() {
+  local key=$1
+  echo "DEPLOY_$key" | tr '-' '_' | tr '[a-z]' '[A-Z]'
+}
+
+# Other keys like `setup`, `deploy` or `post-deploy` are multiple-value keys used for [hooks](#hooks).
+# They can be present multiple time in the same environment and all their values will be used in order.
+get_all_config_key_values() {
+
+  local env=$DEPLOY_ENV
+  local key=$1
+
+  test -n "$env" \
+    && test -n "$key" \
+    && get_config_key_values_inherited $key $env
+}
+
+# ### Environment inheritance
+#
+# When deploying your project to multiple environments, there will probably be some configuration properties
+# that are identical for multiple environments.
+# To avoid repetition, an environment can **inherit** from one or multiple other environments:
+#
+#     # deploy.conf
+#     [common]
+#     user dev
+#     deploy do-stuff
+#     deploy do-more-stuff
+#
+#     [secure]
+#     user sekret
+#     deploy do-sensitive-stuff
+#
+#     [production]
+#     inherits common
+#     inherits shared
+#     user root
+#     deploy just-do-it
+#
+# In this example, the `production` environment inherits from `common` and `secure` (in that order).
+#
+# The value of a *single-value* key like `user` will be the last value found in the environment inheritance tree.
+# In this case, it will be `root` for the `production` environment (the values inherited from the `common` and `secure` environments are overwritten).
+#
+# A *multiple-value* key like `deploy` will include all values found in the entire inheritance tree.
+# In this case, it will have 4 values for the `production` environments, taken in order from the `common`, `secure` and `production` sections:
+#
+#     do-stuff
+#     do-more-stuff
+#     do-sensitive-stuff
+#     just-do-it
+get_config_key_values_inherited() {
+
+  local key="$1"
+  local env="$2"
+  local values=
+
+  if ! config_section_exists $env; then
+    abort "[$env] config section not defined"
+  fi
+
+  local new_line=$'\n'
+  local old_ifs=$IFS
+  IFS=$'\n'
+
+  local inherits="$(get_config_key_values_in_env inherits $env)"
+  for inherits_key in $inherits; do
+    IFS="$old_ifs"
+
+    local inherited_values="$(get_config_key_values_inherited $key $inherits_key)"
+    if test -n "$inherited_values"; then
+      test -n "$values" && values="$values$new_line"
+      values="$values$inherited_values"
+    fi
+
+    IFS=$'\n'
+  done
+
+  IFS="$old_ifs"
+
+  # For convenience in simple use cases, you can also add a **default environment** by including a nameless section in your configuration file:
+  #
+  #     # deploy.conf
+  #     []
+  #     user dev
+  #     deploy do-stuff
+  #     deploy do-more-stuff
+  #
+  #     [development]
+  #     deploy do-it-somehow
+  #
+  #     [production]
+  #     user root
+  #     deploy do-it-seriously
+  #
+  # All environments that have no `inherits` key automatically inherit from the default environment.
+  if test -z "$inherits"; then
+    local default_environment_values="$(get_config_key_values_in_env $key)"
+    if test -n "$default_environment_values"; then
+      [ -n "$values" ] && values="$new_line$values"
+      values="$default_environment_values$values"
+    fi
+  fi
+
+  local current_environment_values="$(get_config_key_values_in_env $key $env)"
+  if test -n "$current_environment_values"; then
+    [ -n "$values" ] && values="$values$new_line"
+    values="$values$current_environment_values"
+  fi
+
+  echo "$values"
+}
+
+
+
+
+
+# ## Hooks
+#
+# Hooks are user-defined commands that can be run during a *deployment phase*.
+# There are currently two phases defined: **setup** and **deploy**.
+# The *setup* phase happens when you run the `setup` command,
+# while the *deploy* phase happens when you run the `ref` command.
+#
+# There are various hooks for each phase: some that run before, some during and some after **deploy** does its thing.
+# These are the currently available hooks:
+#
+#     pre-setup
+#     post-setup
+#
+#     pre-deploy
+#     deploy
+#     post-deploy
+#
+# Hooks are multiple-value keys that are optional and can be used as many times as you want.
+# They will all be run in order.
+run_hooks() {
+
+  local name=$1
+  test -n "$name" || abort hook name required
+  local dir=$2
+  test -n "$dir" || abort hook working directory required
+
+  local path=`get_last_config_key_value path`
+  local commands=`get_all_config_key_values $name`
+
+  log hook $name
+
+  if test -z "$commands"; then
+    echo "    nothing to do"
+    return 0
+  fi
+
+  local old_ifs=$IFS
+  IFS=$'\n'
+
+  for cmd in $(echo "$commands"); do
+    IFS="$old_ifs"
+
+    # Each hook is run in a specific working directory and has access to various environment variables.
+    # `$DEPLOY_PATH` is always exported and indicates the deployment directory
+    # (which is not necessarily the same as the hook's working directory).
+    # Additional user-defined variables may also be made available (see [environment variables](#environment-variables)).
+    #
+    # Here's an example of how you could use hooks to cache your `node_modules` directory after every deployment
+    # to shorten future installation times:
+    #
+    #     # restore cache (if present)
+    #     deploy       tar -xzf $DEPLOY_PATH/cache.gz -C . || exit 0
+    #     # install new dependencies
+    #     deploy       npm install --production
+    #     # update cache
+    #     post-deploy  tar -czf $DEPLOY_PATH/cache.gz node_modules
+    run "cd $dir \
+         && $(build_export_env_command) \
+         && $cmd 2>&1" \
+      || abort $name hook failed
+
+    IFS=$'\n'
+  done
+
+  IFS="$old_ifs"
+}
+
+# See the [`setup`](#setup) and [`ref`](#deploy) commands to learn exactly when and where hooks are executed.
+
+
+
+
+
+# ## Configuration properties
+
+# ### Project
+#
+# * **`repo <url>`** (or the `$DEPLOY_REPO` variable) defines the Git URL from which your repository will be cloned at setup time.
+# * **`path <dir>`** (or the `$DEPLOY_PATH` variable) defines the directory into which your project will be deployed on the host.
+
+# ### SSH connection
+#
+# Various SSH options can be specified through the configuration file or environment variables:
+build_ssh_command() {
+
+  # * **`host <address>`** (or the `$DEPLOY_HOST` variable) is mandatory for all environments.
+  #   It indicates which host or IP address to connect to.
+  local host=$(get_last_config_key_value host)
+  test -n "$host" || abort "no host config found in environment $DEPLOY_ENV"
+
+  local url=$host
+
+  # * **`user <name>`** (or the `$DEPLOY_USER` variable) specifies the user to connect as.
+  #   By default, you connect with the same name as your local user.
+  local user=$(get_last_config_key_value user)
+  test -n "$user" && url="$user@$url"
+
+  # * **`identity <file>`** (or the `$DEPLOY_IDENTITY` variable) specifies a file from which the private key for public key authentication is read.
+  local identity="`get_last_config_key_value identity`"
+  test -n "$identity" && identity="-i $identity"
+
+  # * **`forward-agent yes`** (or the `$DEPLOY_FORWARD_AGENT` variable) enables agent forwarding.
+  local forward_agent="`get_last_config_key_value forward-agent`"
+  test -n "$forward_agent" && forward_agent="-A"
+
+  # * **`port <number>`** (or the `$DEPLOY_PORT` variable) specifies the host port to connect to.
+  local port="`get_last_config_key_value port`"
+  test -n "$port" && port="-p $port"
+
+  # * **`tty yes`** (or the `$DEPLOY_TTY` variable) forces pseudo-terminal allocation.
+  local tty="`get_last_config_key_value tty`"
+  test -n "$tty" && tty="-t"
+
+  echo "ssh $tty $forward_agent $port $identity $url"
+}
+
+# All commands executed on the host through SSH will be logged to the console.
+run() {
+  local shell="`build_ssh_command`"
+  echo_command "$@"
+  $shell $@
+}
+
+# ### Environment variables
+#
+# You can define environment variables that will be exported on the host when executing hooks.
+build_export_env_command() {
+
+  # The `$DEPLOY_PATH` variable is always exported and indicates the deployment directory
+  # configured by the user with the `path` config key or the local `$DEPLOY_PATH` variable.
+  local path="$(get_last_config_key_value path)";
+  local env_command="export DEPLOY_PATH=$path"
+
+  # * **`env <NAME>=<VALUE>...`** defines one or multiple environment variables to export on the host when running hooks.
+  #
+  #       # deploy.conf
+  #       env FOO=BAR
+  #       env BAZ=QUX CORGE=GRAULT
+  env_command="$command $(echo `get_all_config_key_values env`|sed 's/\n/ /g')"
+
+  # * **`forward-env <NAME>...`** defines the name(s) of one or multiple local environment variables
+  #   to export on the host when running hooks.
+  #
+  #       # deploy.conf
+  #       forward-env FOO
+  #       forward-env BAR BAZ QUX
+  for forward_env in $(echo `get_all_config_key_values forward-env`|sed 's/\n/ /g'); do
+    env_command="$env_command $forward_env=$(echo "${!forward_env}"|sed 's/ /\\ /g')"
+  done
+
+  echo "$env_command"
+}
+
+# If you have a `.env` file in your local project directory, it will automatically be sourced.
+# This can be handy to create local variables that you can forward to the host.
+#
+#     # .env
+#     export FOO=BAR
+#     export YEAR=$(date "+%Y")
+load_env_file() {
+  test -f .env && { test -r .env || abort "environment file .env is not readable"; }
+  test -f .env && { . .env || abort "an error occurred while sourcing .env"; }
+}
+
+
+
+
+
+# ## General options
+#
+# These are the command line options of **deploy** itself, that are not specific to a particular sub-command.
+#
+# They come directly after the `deploy` binary, before the environment and command:
+#
+# ```sh
+# deploy --version
+# deploy --config foo.conf production setup
+# ```
+#
+# Most of them have corresponding environment variables.
+main() {
+  load_env_file
+
+  DEPLOY_ENV=
+
+  test -z "$DEPLOY_COLOR" && DEPLOY_COLOR=auto
+  test -z "$DEPLOY_CONFIG" && DEPLOY_CONFIG=$DEFAULT_CONFIG
+  test -z "$DEPLOY_UPDATE_REPO" && DEPLOY_UPDATE_REPO=$DEFAULT_UPDATE_REPO
+
+  while test $# -ne 0; do
+    arg=$1; shift
+    case $arg in
+      # * **`--help`** prints usage information and exits.
+      -h|--help) usage; exit ;;
+      # * **`--version`** prints the current version and exits.
+      -V|--version) echo $VERSION; exit ;;
+      # * **`--chdir <dir>`** (or the `$DEPLOY_CHDIR` variable) changes **deploy**'s working directory before loading the configuration file.
+      -C|--chdir) cd "$1"; shift ;;
+      # * **`--config <path>`** (or the `$DEPLOY_CONFIG` variable) allows you to set a custom path for the configuration file (defaults to `./deploy.conf`).
+      -c|--config) set_config_path $1; shift ;;
+      # * **`--color always|never|auto`** (or the `$DEPLOY_COLOR` variable) enables/disables colors in the output of the script
+      #
+      #   This defaults to `auto`, which only enables colors if the current terminal is interactive.
+      --color) DEPLOY_COLOR=$1; shift ;;
+
+      exec) exec_remote_command $@; exit ;;
+      console) open_remote_console $@; exit ;;
+      setup) setup $@; exit ;;
+      list) list_releases; exit ;;
+      ref) deploy_ref $@; exit ;;
+      update) update_self $@; exit ;;
+      config) config $@; exit ;;
+      config-all) config_all $@; exit ;;
+
+      *)
+        if test -z "$DEPLOY_ENV"; then
+          DEPLOY_ENV=$arg;
+        else
+          abort "unknown command or option $arg"
+        fi
+        ;;
+    esac
+  done
+
+  usage
+  abort "no command given"
+}
+
+set_config_path() {
+  local file="$1"
+  test -e "$file" || abort "invalid config file: $file does not exist"
+  test -f "$file" || abort "invalid config file: $file is not a file"
+  test -r "$file" || abort "invalid config file: $file cannot be read"
+  DEPLOY_CONFIG="$file"
 }
 
 
@@ -50,72 +572,129 @@ EOF
 
 
 # ## Sub-commands
+#
+# These are the commands you will use to set up and deploy your projects.
+#
+# Note that most (but not all) of **deploy**'s sub-commands require an environment to be specified before the actual command name, for example:
+#
+# ```sh
+# deploy setup             # error! no environment
+# deploy production setup  # all good
+# ```
+require_env() {
+  test -n "$DEPLOY_ENV" || abort "<env> required"
+  config_section_exists $DEPLOY_ENV || abort "[$DEPLOY_ENV] config section not defined"
+}
+
+# <a name="setup"></a>
 
 # ### `<env> setup`
 #
-# Perform first-time setup tasks before deployment.
+# Perform **first-time setup** tasks on the host before deployment.
+# You should only have to run this once before deploying the first time.
+#
+# ```sh
+# deploy production setup
+# ```
+#
+# **deploy** will create the following structure for you in the deployment directory defined by the `path` config key (or the `$DEPLOY_PATH` variable):
+# * `$DEPLOY_PATH/releases` will contain each deployment's files
+# * `$DEPLOY_PATH/repo` will be a bare clone of your Git repository
+# * `$DEPLOY_PATH/tmp` will be used to store temporary files during deployment
+#
+# This phase has 3 hooks that are all executed in the deployment directory.
+# Note that this directory **must already exist** on the host and be writable by the user you connect as.
+#
+# This is what **deploy** will do during setup:
 setup() {
   require_env
 
-  local path="$(get_last_config_value path)"
-  local repo="$(get_last_config_value repo)"
+  local path="$(get_last_config_key_value path)"
+  local repo="$(get_last_config_key_value repo)"
 
-  # Run user-defined `pre-setup` hooks (if any).
+  # * Run user-defined `pre-setup` hooks (if any).
   run_hooks pre-setup "$path"
 
-  # Create the `releases` and `tmp` directories in the deployment directory
-  # if they don't already exist.
+  # * Create the `releases` and a `tmp` directories if they don't exist already.
   log running setup
   run "{ test -d $path || exit 1; } \
        && mkdir -p $path/releases $path/tmp" \
     || abort "failed to set up directories; make sure $path exists and is writable"
 
-  # Clone the repository into `repo` in the deployment directory
-  # if it isn't already there.
+  # * Clone the repository into the `repo` directory if it isn't already there.
   log cloning repo
   run "test -d $path/repo \
        || { git clone --bare $repo $path/repo || exit 1; }" \
     || abort "failed to clone repo"
 
-  # Run user-defined `post-setup` hooks (if any).
+  # * Run user-defined `post-setup` hooks (if any).
   run_hooks post-setup "$path"
 
   log setup complete
 }
 
-# ### `<env> ref [ref]`
+# <a name="deploy"></a>
+
+# ### `<env> ref [-f|--force] [ref]`
 #
-# Deploys the latest changes from the repository.
+# **Deploy a new release** from the latest changes in the Git repository.
 deploy_ref() {
   require_env
-  require_no_local_changes
 
-  local path=`get_last_config_value path`
-  local release=`date -u '+%Y-%m-%d-%H-%M-%S'`
+  # For each deployment, a new release directory will be created in `releases` in the deployment directory.
+  # The name of a release directory is the current date and time in the `YYYY-MM-DD-HH-MM-SS` format.
+  # (You can list deployed releases with the [list command](#list).)
+  local path=$(get_last_config_key_value path)
+  local release=$(date -u '+%Y-%m-%d-%H-%M-%S')
   local current_dir="$path/current"
   local release_dir="$path/releases/$release"
   local tmp_dir="$path/tmp"
 
-  # A Git reference to a commit, branch or tag is required,
-  # either from the command line argument or from a `ref` key in the configuration file.
-  local ref=${1:-`get_last_config_value ref`}
+  # You must provide a Git reference to a **commit, branch or tag** to deploy,
+  # either as the `[ref]` argument, with the `ref` config key or the `$DEPLOY_REF` variable.
+  #
+  # If your Git repository is **private**, make sure that the deployment user has access to it.
+  #
+  # Note that **deploy** will refuse to deploy unless all your local changes are committed and pushed.
+  # You can override this behavior with the `-f|--force` option (or the `$DEPLOY_FORCE` variable).
+  local ref=
+  while test $# -ne 0; do
+    arg=$1; shift
+    case $arg in
+      -f|--force) DEPLOY_FORCE=1 ;;
+      *)
+        if test -z "$ref"; then
+          ref="$arg"
+        else
+          abort "unknown command or option $arg"
+        fi
+        ;;
+    esac
+  done
+
+  require_no_local_changes
+
+  test -z "$ref" && ref=$(get_last_config_key_value ref)
   test -n "$ref" || abort "no commit, branch or tag specified"
 
+  # This is what **deploy** will do during deployment:
   log deploying
   echo "    ref: $ref"
   echo "    release: $release"
 
-  # Run user-defined pre-deploy hooks (if any).
-  run_hooks pre-deploy $current_dir
+  # * Run user-defined pre-deploy hooks (if any) in the directory of the **previous release**.
+  #   You may define **pre-deploy hooks** to perform any task you might want to do before the actual deployment
+  #   (e.g. you might want to stop the currently running version or put it into maintenance mode).
+  run_hooks pre-deploy "$current_dir"
 
-  # Fetch the latest changes from the repository (from the specified ref).
+  # * Fetch the latest changes from the repository.
   log fetching updates
   run "cd $path/repo \
        && git fetch origin '+refs/heads/*:refs/heads/*' \
        && git rev-list -n 1 $ref" \
     || abort "could not fetch changes"
 
-  # Extract the sources at the specified ref into the `releases` directory.
+  # * Create the new release directory and extract the source at the specified ref into it.
   log "extracting source at $ref"
   run "cd $path/repo \
        && mkdir -p $release_dir \
@@ -124,111 +703,117 @@ deploy_ref() {
        && rm -f $tmp_dir/release-*.tar" \
     || abort "could not extract source from repository"
 
-  # Run user-defined deploy hooks (if any).
+  # * Run user-defined deploy hooks (if any) in the new release directory.
+  #   You should define **deploy hooks** to build your application or install its dependencies at this stage.
   run_hooks deploy $release_dir
 
-  # Link the `current` directory to the new release.
+  # * Make a symlink of the new release directory as `current` in the deployment directory.
   log linking current
   run "ln -fns $release_dir $current_dir" \
     || abort "could not create current symlink"
 
-  # Run user-defined post-deploy hooks (if any).
+  # * Run user-defined post-deploy hooks (if any) in the current release directory
+  #   (which is now the same as the new release directory that was just created).
+  #
+  #   You should define **post-deploy hooks** to execute or start your application at this stage.
   run_hooks post-deploy $current_dir
 
   log successfully deployed
 }
 
+require_no_local_changes() {
+  if test -z "$DEPLOY_FORCE"; then
+    git --no-pager diff --exit-code --quiet || abort "commit or stash your changes before deploying"
+    git --no-pager diff --exit-code --quiet --cached || abort "commit your staged changes before deploying"
+    [ -z "`git rev-list @{upstream}.. -n 1`" ] || abort "push your changes before deploying"
+  fi
+}
+
 # ### `[env] config [key]`
 #
-# Prints configuration values.
-#
-#     # deploy.conf
-#     []
-#     user dev
-#
-#     [production]
-#     user root
-#     port 222
+# Print values from your `deploy.conf` configuration file.
 config() {
-  # If called with **no environment and no arguments**, print the whole configuration file:
+  # * If called with **no environment and no arguments**, it prints the whole configuration file:
   #
-  # ```sh
-  # # shell
-  # deploy config
-  # #=> []
-  # #=> user dev
-  # #=>
-  # #=> [production]
-  # #=> user root
-  # #=> port 222
-  # ```
+  #   ```sh
+  #   $> deploy config
+  #   []
+  #   user dev
+  #
+  #   [production]
+  #   user root
+  #   port 222
+  #   ```
   if test $# -eq 0; then
     if test -z "$DEPLOY_ENV"; then
       cat "$DEPLOY_CONFIG"
 
-    # If **preceded by the environment**, print all values in that section:
+    # * If **preceded by the environment**, it prints all key/value pairs in that environment (including inherited ones but not including the `inherits` keys):
     #
-    # ```sh
-    # # shell
-    # deploy production config
-    # #=> user root
-    # #=> port 222
-    # ```
+    #   ```sh
+    #   $> deploy production config
+    #   user root
+    #   port 222
+    #   ```
     else
       get_config_section "$DEPLOY_ENV"
     fi
 
-  # If called with **the environment and a key**, print the last value of that key in that section:
+  # * If called with **the environment and a key**, it prints the last value of that key for that environment
+  #   (only the last value is printed even for a multiple-value key):
   #
-  # ```sh
-  # # shell
-  # deploy production config user
-  # #=> root
-  # ```
+  #   ```sh
+  #   $> deploy production config user
+  #   root
+  #   ```
   else
-    get_last_config_value $1
+    get_last_config_key_value $1
   fi
 }
 
 # ### `<env> config-all <key>`
 #
-# Outputs all values of a config key in the current environment and its inherited environments.
-#
-#     # deploy.conf
-#     []
-#     user dev
-#
-#     [production]
-#     user root
-#     port 222
+# Print all values of a config key in the current environment and its inherited environments
+# (all values are printed even for a single-value key):
 #
 # ```sh
-# # shell
-# deploy production config-all user
-# #=> dev
-# #=> root
+# $> deploy production config-all user
+# dev
+# root
 # ```
 config_all() {
   require_env
-  get_all_config_values "$1"
+  get_all_config_key_values "$1"
 }
 
 # ### `<env> console [path]`
 #
-# Launches an interactive ssh console session.
-console() {
+# Launch an interactive **ssh session** on the host.
+open_remote_console() {
   require_env
 
-  # If an **absolute path** is given, the session starts there.
+  # * If an **absolute path** is specified, the session starts there.
+  #
+  #   ```sh
+  #   deploy production console /var/www
+  #   ```
   local path="$1"
 
-  # If **no path** is given, the session starts in the deployment directory.
+  # * If **no path** is specified, the session starts in the deployment directory.
+  #
+  #   ```sh
+  #   deploy production console
+  #   ```
   if test -z "$path"; then
-    path="$(get_last_config_value path)"
+    path="$(get_last_config_key_value path)"
 
-  # If a **relative path** is given, it starts there relative to the deployment directory.
+  # * If a **relative path** is specified, it starts there relative to the deployment directory.
+  #
+  #   ```sh
+  #   deploy production console current
+  #   ```
   elif [[ ! "$path" =~ ^\/ ]]; then
-    path="$(get_last_config_value path)/$path"
+    path="$(get_last_config_key_value path)/$path"
   fi
 
   test -n "$path" || abort "path is required"
@@ -240,20 +825,22 @@ console() {
 
 # ### `<env> exec <cmd>`
 #
-# Executes the specified command on the host.
+# **Execute** the specified command on the host.
 #
 # ```sh
 # deploy production exec ps -ef
 # ```
 exec_remote_command() {
   require_env
-  local path="$(get_last_config_value path)"
+  local path="$(get_last_config_key_value path)"
   run "cd $path && $(build_export_env_command) && $@"
 }
 
+# <a name="list"></a>
+
 # ### `<env> list`
 #
-# Lists the releases that have been deployed on the host.
+# List the **releases** that have been deployed on the host.
 #
 # ```sh
 # $> deploy production list
@@ -263,32 +850,34 @@ exec_remote_command() {
 # ```
 list_releases() {
   require_env
-  local path=`get_last_config_value path`
+  local path=`get_last_config_key_value path`
   run "ls -1 $path/releases"
 }
 
 # ### `update [--prefix dir] [--path path] [ref]`
 #
-# Updates this script to the latest version by downloading it from the Git repository.
+# Updates **deploy** to the latest version by downloading it from the Git repository and installing it at `/usr/local/bin/deploy` (by default).
 update_self() {
   local ref=
   local path=
   local prefix=/usr/local
 
-  # This sub-command requires additional shell commands to be available.
-  require_command chmod cp mktemp
+  # In addition to the basic requirements, this sub-command also requires `chmod`, `cp` and `mktemp` to be available in the shell.
+  for com in chmod cp mktemp; do
+    require_command $com
+  done
 
   while test $# -ne 0; do
     arg=$1; shift
     case $arg in
-      # If a `--prefix` directory is specified, the script will be installed
-      # at `bin/deploy` relative to that directory.
+      # * If a **`--prefix <dir>`** directory is specified, the script will be installed
+      #   at `bin/deploy` relative to that directory.
       --prefix) prefix="$1"; shift ;;
-      # If a `--path` file is specified, the script will be installed there
-      # (this overrides the `--prefix` option).
+      # * If a **`--path <file>`** file is specified, the script will be installed there
+      #   (this *ignores* the `--prefix` option).
       --path) path="$1"; shift ;;
-      # The first optional argument is the Git revision from which to download the script.
-      # This defaults to `master`.
+      # * The optional **`[ref]`** argument is the Git revision at which to install the script.
+      #   This defaults to `master`.
       *)
         if test -z "$ref"; then
           ref="$arg"
@@ -302,10 +891,10 @@ update_self() {
   test -z "$path" && path=$prefix/bin/deploy
 
   # The installation path must be a writable file or not exist.
+  # If the installation path does not already exist, its parent must be a writable directory.
   test -e "$path" && ! test -f "$path" && abort "$path already exists and is not a file"
   test -f "$path" && ! test -w "$path" && abort "$path is not writable"
 
-  # If the installation path does not already exist, its parent must be a writable directory.
   local dir="$(dirname "$path")"
   test -f "$path" || test -e "$dir" || abort "$dir does not exist"
   test -f "$path" || test -d "$dir" || abort "$dir is not a directory"
@@ -314,14 +903,17 @@ update_self() {
   test -z "$ref" && ref=master
   log "updating deploy from $ref @ $DEPLOY_UPDATE_REPO"
 
-  # The Git repository is downloaded in a temporary directory that will be cleaned up when the update is done (or fails).
+  # To perform the update, **deploy** will download its Git repository into a temporary directory that will be cleaned up when the update is done (or fails).
   local tmp_dir=`mktemp -d -t deploy`
   trap "cleanup $tmp_dir" EXIT
 
-  # Once the Git directory is cloned, the correct revision of the script is copied to the installation path and made executable.
+  # The correct revision of the script is then copied to the installation path and made executable.
   cd "$tmp_dir" \
     && git clone $DEPLOY_UPDATE_REPO "$tmp_dir" || abort could not clone $DEPLOY_UPDATE_REPO \
-    && { git rev-parse --verify $ref &>/dev/null && git reset --hard $ref || { git fetch origin $ref && git reset --hard origin/$ref; }; } || abort could not find $ref \
+    && { \
+      git rev-parse --verify $ref &>/dev/null && git reset --hard $ref \
+      || { git fetch origin $ref && git reset --hard origin/$ref; }; \
+    } || abort could not find $ref \
     && cp bin/deploy $path \
     && chmod +x /usr/local/bin/deploy \
     || abort could not update deploy
@@ -329,439 +921,61 @@ update_self() {
   log "updated $VERSION -> `./bin/deploy --version`"
 }
 
-
-
-
-
-# ## General options
-
-# ### `--config <path>`
-#
-# `./deploy.conf` is used as the configuration file by default.
-# Use this option or the `$DEPLOY_CONFIG` environment variable to load a different file.
-#
-# The command line option takes precedence over the environment variable.
-set_config_path() {
-  local file="$1"
-  test -e "$file" || abort "invalid config file: $file does not exist"
-  test -f "$file" || abort "invalid config file: $file is not a file"
-  test -r "$file" || abort "invalid config file: $file cannot be read"
-  DEPLOY_CONFIG="$file"
-}
-
-# ### `--version`
-#
-# Prints the current version and exits.
-version() {
-  echo $VERSION
-}
-
-
-
-
-
-# ## Internal implementation
-
-# ### `config_section_exists $env`
-#
-# Checks whether the config file contains a section with the specified name.
-# Returns a non-zero status code if it doesn't.
-#
-#     # deploy.conf
-#     [development]
-#     host example
-#
-# ```sh
-# # script
-# config_section_exists development
-# echo $? #=> 0
-# config_section_exists production
-# echo $? #=> 1
-# ```
-config_section_exists() {
-  grep "^\[$1\]$" "$DEPLOY_CONFIG" &> /dev/null
-}
-
-# ### `get_config_env_var $key`
-#
-# Gets the environment variable that can be used to add
-# a value to the specified config key.
-#
-# ```sh
-# # script
-# get_config_env_var path
-# #=> DEPLOY_PATH
-# get_config_env_var post-setup
-# #=> DEPLOY_POST_SETUP
-# ```
-get_config_env_var() {
-  local key=$1
-  echo "DEPLOY_$key" | tr '-' '_' | tr '[a-z]' '[A-Z]'
-}
-
-# ### `get_last_config_value $key`
-#
-# Gets the last value of a config key in the current environment and its inherited environments.
-#
-#     # deploy.conf
-#     []
-#     user dev
-#
-#     [production]
-#     user root
-#
-# ```sh
-# # script
-# get_last_config_value host production
-# #=> root
-# ```
-get_last_config_value() {
-
-  local key=$1
-  local env_var=$(get_config_env_var $key)
-
-  local env_var_value=${!env_var}
-  if [ -n "$env_var_value" ]; then
-    echo "$env_var_value"
-  else
-    test -n "$key" \
-      && get_all_config_values "$key" \
-      | tail -n 1
-  fi
-}
-
-# ### `get_all_config_values $key`
-#
-# Gets all values of a config key in the current environment and its inherited environments.
-#
-#     # deploy.conf
-#     [development]
-#     deploy do-stuff
-#     deploy do-more-stuff
-#     deploy just-do-it
-#
-# ```sh
-# # script
-# get_all_config_values deploy development
-# #=> do-stuff
-# #=> do-more-stuff
-# #=> just-do-it
-# ```
-get_all_config_values() {
-
-  local env=$DEPLOY_ENV
-  local key=$1
-
-  test -n "$env" \
-    && test -n "$key" \
-    && get_config_values_recursive $key $env
-}
-
-# ### `get_config_values_recursive $key $env`
-#
-# Recursively gets all values of a config key for an environment and its inherited environments.
-# Used by `get_all_config_values`.
-#
-#     # deploy.conf
-#     []
-#     deploy do-stuff
-#
-#     [common]
-#     deploy do-more-stuff
-#     deploy do-stuff-again
-#
-#     [shared]
-#     inherits common
-#     deploy do-shared-stuff
-#
-#     [development]
-#     inherits common
-#     inherits shared
-#     deploy just-do-it
-#
-# ```sh
-# # script
-# get_config_values_recursive deploy development
-# #=> do-stuff
-# #=> do-more-stuff
-# #=> do-stuff-again
-# #=> just-do-it
-# ```
-get_config_values_recursive() {
-
-  local key="$1"
-  local env="$2"
-  local values=
-
-  if ! config_section_exists $env; then
-    log_error "    [$env] config section not defined"
-    exit 0
-  fi
-
-  local new_line=$'\n'
-  local old_ifs=$IFS
-  IFS=$'\n'
-
-  local inherits="$(get_config_values_in_env inherits $env)"
-  for inherit_env in $inherits; do
-    IFS="$old_ifs"
-
-    local new_values="$(get_config_values_recursive $key $inherit_env)"
-    if test -n "$new_values"; then
-      [ -n "$values" ] && values="$values$new_line"
-      values="$values$new_values"
-    fi
-
-    IFS=$'\n'
-  done
-
-  IFS="$old_ifs"
-
-  if test -z "$inherits"; then
-    local top_level_values="$(get_config_values_in_env $key)"
-    if test -n "$top_level_values"; then
-      [ -n "$values" ] && values="$new_line$values"
-      values="$top_level_values$values"
-    fi
-  fi
-
-  local current_level_values="$(get_config_values_in_env $key $env)"
-  if test -n "$current_level_values"; then
-    [ -n "$values" ] && values="$values$new_line"
-    values="$values$current_level_values"
-  fi
-
-  echo "$values"
-}
-
-# ### `get_config_values_in_env $key $env`
-#
-# Gets all values of a config key for an environment:
-#
-#     # deploy.conf
-#     [development]
-#     host foo
-#     port 42
-#     host bar
-#
-# ```sh
-# # script
-# get_config_values_in_env host development
-# #=> foo
-# #=> bar
-# ```
-get_config_values_in_env() {
-
-  local key="$1"
-  local env="$2"
-
-  get_config_section $env \
-    | grep "^$key " \
-    | cut -d ' ' -f 2-999
-}
-
-# ### `get_config_section $env`
-#
-# Gets all key/value pairs in a config section, with all comments and empty lines omitted:
-#
-#     # deploy.conf
-#     [development]
-#
-#     host foo
-#     # SSH port
-#     port 42
-#     user dev
-#
-# ```sh
-# # script
-# get_config_section development
-# #=> host foo
-# #=> port 42
-# #=> user dev
-# ```
-get_config_section() {
-
-  local env="$1"
-
-  grep "^\[$env\]$" -A 999 "$DEPLOY_CONFIG" \
-    | tail -n +2 \
-    | grep -v "^ *#" \
-    | grep -v "^ *$" \
-    | sed "/^\[/q" \
-    | sed "/^\[/d"
-}
-
-# ### `hooks $name $host_cwd`
-#
-# Executes all user-defined hooks of the specified name in the current environment.
-run_hooks() {
-
-  local name=$1
-  test -n "$name" || abort hook name required
-
-  # The command are run in the specified working directory on the host.
-  local dir=$2
-  test -n "$dir" || abort hook working directory required
-
-  local path=`get_last_config_value path`
-  local commands=`get_all_config_values $name`
-
-  log hook $name
-
-  # Nothing is done if no hooks are defined.
-  if test -z "$commands"; then
-    echo "    nothing to do"
-    return 0
-  fi
-
-  local old_ifs=$IFS
-  IFS=$'\n'
-
-  for cmd in $(echo "$commands"); do
-    IFS="$old_ifs"
-
-    # Various environment variables are exported before executing each hook,
-    # `$DEPLOY_PATH` indicating the deployment directory (not necessarily the same
-    # as the hook working directory), and any additional user-defined variables.
-    # See `build_export_env_command`.
-    run "cd $dir \
-         && $(build_export_env_command) \
-         && $cmd 2>&1" \
-      || abort $name hook failed
-
-    IFS=$'\n'
-  done
-
-  IFS="$old_ifs"
-}
-
-# ### `build_ssh_command`
-#
-# Builds an SSH command to connect to the host.
-build_ssh_command() {
-  # Various SSH options can be given through the config file or environment variables.
-  # The `host` config (or `$DEPLOY_HOST` variable) is the only mandatory one.
-  local host=$(get_last_config_value host)
-  test -n "$host" || abort "no host config found in environment $DEPLOY_ENV"
-
-  local url=$host
-
-  # Specify the user to connect to the host as with the `user` config or the `$DEPLOY_USER` variable.
-  local user=$(get_last_config_value user)
-  test -n "$user" && url="$user@$url"
-
-  # Supply a private key (identity file) with the `key` config or the `$DEPLOY_KEY` variable.
-  local key="`get_last_config_value key`"
-  test -n "$key" && key="-i $key"
-
-  # Enable agent forwarding with the `forward-agent` config or the `$DEPLOY_FORWARD_AGENT` variable.
-  local forward_agent="`get_last_config_value forward-agent`"
-  test -n "$forward_agent" && forward_agent="-A"
-
-  # Specify the host port to connect to with the `port` config or the `$DEPLOY_PORT` variable.
-  local port="`get_last_config_value port`"
-  test -n "$port" && port="-p $port"
-
-  # Force pseudo-terminal allocation with the `tty` key or the `$DEPLOY_TTY` variable.
-  local tty="`get_last_config_value tty`"
-  test -n "$tty" && tty="-t"
-
-  echo "ssh $tty $forward_agent $port $key $url"
-}
-
-# ### `run $@`
-#
-# Runs the specified command on the host through SSH.
-run() {
-  local shell="`build_ssh_command`"
-  echo_command "$@"
-  $shell $@
-}
-
-# ### `build_export_env_command`
-#
-# Returns a command to run on the host to export environment variables for further command execution.
-build_export_env_command() {
-
-  # The `$DEPLOY_PATH` variable is always exported and indicates the deployment directory
-  # configured by the user with the `path` config or the local `$DEPLOY_PATH` variable.
-  local path="$(get_last_config_value path)";
-  local env_command="export DEPLOY_PATH=$path"
-
-  # Additional variables may be exported by the user with the `env` config in the form `env FOO=BAR`.
-  env_command="$command $(echo `get_all_config_values env`|sed 's/\n/ /g')"
-
-  # Local variables may also be exported on the host with the `forward-env` config in the form `forward-env BAZ`.
-  for forward_env in $(echo `get_all_config_values forward-env`|sed 's/\n/ /g'); do
-    env_command="$env_command $forward_env=$(echo "${!forward_env}"|sed 's/ /\\ /g')"
-  done
-
-  echo "$env_command"
-}
-
-# ### `require_env`
-#
-# Ensures that an environment has been selected by providing an argument before the command to run.
-# This is required for most (but not all) sub-commands. See `main`.
-require_env() {
-  test -n "$DEPLOY_ENV" || abort "<env> required"
-  # It also ensures that the config file contains a section for that environment.
-  config_section_exists $DEPLOY_ENV || abort "[$DEPLOY_ENV] config section not defined"
-}
-
-# ### `require_no_local_changes`
-#
-# Ensures that all changes are committed and pushed before deploying.
-require_no_local_changes() {
-  git --no-pager diff --exit-code --quiet || abort "commit or stash your changes before deploying"
-  git --no-pager diff --exit-code --quiet --cached || abort "commit your staged changes before deploying"
-  [ -z "`git rev-list @{upstream}.. -n 1`" ] || abort "push your changes before deploying"
-}
-
-# ### `command_exists $command`
-#
-# Checks whether the specified command exists.
-command_exists() {
-  command -v "$1" >/dev/null 2>&1
-}
-
-# ### `require_command $command`
-#
-# Ensures that the specified command exists.
-require_command() {
-  command_exists "$1" || abort "$1 command not found"
-}
-
-# ### `check_requirements`
-#
-# Ensures that all commands required for the execution of this script exist.
-# Some optional commands are not checked here. See `update_self`.
-check_requirements() {
-  for com in cat cut date git grep ls mkdir sed ssh tail tar; do
-    require_command $com
-  done
-}
-
-# ### `make_temporary_directory`
-#
-# Creates a temporary directory that will be cleaned up when this script exits.
-make_temporary_directory() {
-  DEPLOY_TMP_DIR="$(mktemp -d -t deploy)"
-  echo "$DEPLOY_TMP_DIR"
-}
-
-# ### `cleanup [$dir]`
-#
-# Removes the specified directory if an argument is specified and it is an existing directory.
 cleanup() {
   local tmp_dir="$1"
   test -n "$tmp_dir" && test -d "$tmp_dir" && rm -fr "$tmp_dir"
 }
 
-# ### `abort $message`
+
+
+
+
+# ## Output & exit codes
 #
-# Aborts execution of this script with the specified message.
-# The script exists with status code 1.
+# **deploy** will log various messages indicating what it is doing.
+
+# Those messages are printed in colors by default on interactive terminals (this can be disabled with the `--color never` option or `$DEPLOY_COLOR` variable).
+echo_color() {
+  if test -z "$COLORS"; then
+    if [ "$DEPLOY_COLOR" == "always" ]; then
+      COLORS=yes
+    elif [ "$DEPLOY_COLOR" != "never" ] && is_interactive; then
+      COLORS=yes
+    fi
+  fi
+
+  local color="$1"
+  shift
+  local message="$@"
+
+  if [ "$COLORS" == "yes" ]; then
+    echo -e "\033[${color}m${message}\033[0m"
+  else
+    echo "$message"
+  fi
+}
+
+is_interactive() {
+  test "${-#*i}" != "$-" || test -t 0 || test -n "$PS1"
+}
+
+# * **Deployment progress updates** will be printed in bold.
+log() {
+  echo
+  echo_color $COLOR_BOLD "  ○ $@"
+}
+
+# * **Commands executed** on the host will be printed in yellow.
+log_command() {
+  echo_color $COLOR_YELLOW "$@" | tr -s ' ' | sed 's/^/    /'
+}
+
+# * **Errors** will be printed in red.
+log_error() {
+  echo_color $COLOR_RED "$@" 1>&2
+}
+
+# If **deploy** encounters an unrecoverable error, it will log an error and exit with status 1.
 abort() {
   echo
   log_error "  $@"
@@ -769,82 +983,8 @@ abort() {
   exit 1
 }
 
-# ### `log $message`
+main $@
+
+# ## About this page
 #
-# Logs a deployment progress message.
-log() {
-  echo
-  echo_color $COLOR_BOLD "  ○ $@"
-}
-
-# ### `log_command $message`
-#
-# Logs a command that is being executed on the host.
-log_command() {
-  echo_color $COLOR_YELLOW "$@" | tr -s ' ' | sed 's/^/    /'
-}
-
-# ### `log_error $message`
-#
-# Logs an error.
-log_error() {
-  echo_color $COLOR_RED "$@" 1>&2
-}
-
-# ### `echo_color $color $message`
-#
-# Prints a message in the specified color.
-echo_color() {
-  local color="$1"
-  shift
-  local message="$@"
-  echo -e "\033[${color}m${message}\033[0m"
-}
-
-# ## Main command
-COLOR_BOLD=1
-COLOR_RED=31
-COLOR_YELLOW=33
-
-# Exit immediately if requirements are not met.
-check_requirements
-
-# If an `.env` file is present in the current directory, it is sourced before running any commands.
-test -f .env && { test -r .env || abort "environment file .env is not readable"; }
-test -f .env && { . .env || abort "an error occurred while sourcing .env"; }
-
-DEPLOY_ENV=
-
-# The configuration file defaults to `./deploy.conf`.
-test -z "$DEPLOY_CONFIG" && DEPLOY_CONFIG=./deploy.conf
-
-# The repo to update the script from defaults to `git://github.com/AlphaHydrae/deploy.git`.
-test -z "$DEPLOY_UPDATE_REPO" && DEPLOY_UPDATE_REPO=git://github.com/AlphaHydrae/deploy.git
-
-while test $# -ne 0; do
-  arg=$1; shift
-  case $arg in
-    -h|--help) usage; exit ;;
-    -V|--version) version; exit ;;
-    -c|--config) set_config_path $1; shift ;;
-    -C|--chdir) log cd $1; cd $1; shift ;;
-    exec) exec_remote_command $@; exit ;;
-    console) console $1; exit ;;
-    setup) setup $@; exit ;;
-    list) list_releases; exit ;;
-    ref) deploy_ref $1; exit ;;
-    update) update_self $@; exit ;;
-    config) config $@; exit ;;
-    config-all) config_all $@; exit ;;
-    *)
-      if test -z "$DEPLOY_ENV"; then
-        DEPLOY_ENV=$arg;
-      else
-        abort "unknown command or option $arg"
-      fi
-      ;;
-  esac
-done
-
-usage
-abort "no command given"
+# Documentation generated with [Docco](http://ashkenas.com/docco/).
