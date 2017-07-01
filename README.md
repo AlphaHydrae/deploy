@@ -28,13 +28,13 @@ Shamelessly inspired by: [visionmedia/deploy](https://github.com/visionmedia/dep
 - [General options](#general-options)
 - [Sub-commands](#sub-commands)
   - [`<env> setup`](#env-setup)
-  - [`<env> ref [-f|--force] [ref]`](#env-ref--f--force-ref)
+  - [`<env> rev [-f|--force] [rev]`](#env-rev--f--force-rev)
   - [`[env] config [key]`](#env-config-key)
   - [`<env> config-all <key>`](#env-config-all-key)
   - [`<env> console [path]`](#env-console-path)
   - [`<env> exec <cmd>`](#env-exec-cmd)
   - [`<env> list`](#env-list)
-  - [`update [--prefix dir] [--path path] [ref]`](#update---prefix-dir---path-path-ref)
+  - [`update [--prefix dir] [--path path] [rev]`](#update---prefix-dir---path-path-rev)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
@@ -67,13 +67,13 @@ Now run **deploy**!
 
 ```sh
 deploy production setup
-deploy production ref master
+deploy production rev master
 ```
 
 It will:
 * Connect to `my.server.com` as the `deploy` user through SSH
 * The `setup` command will set up a deployment structure and clone your repository
-* The second `ref` command will checkout the latest version of your `master` branch and run the deployment hooks you defined (`deploy` and `post-deploy` in the configuration file)
+* The second `rev` command will checkout the latest version of your `master` branch and run the deployment hooks you defined (`deploy` and `post-deploy` in the configuration file)
 
 Read on to learn what to write in the [configuration file](#configuration-file) or how to use each [sub-command](#sub-commands).
 
@@ -206,7 +206,7 @@ All environments that have no `inherits` key automatically inherit from the defa
 Hooks are user-defined commands that can be run during a *deployment phase*.
 There are currently two phases defined: **setup** and **deploy**.
 The *setup* phase happens when you run the `setup` command,
-while the *deploy* phase happens when you run the `ref` command.
+while the *deploy* phase happens when you run the `rev` command.
 
 There are various hooks for each phase: some that run before, some during and some after **deploy** does its thing.
 These are the currently available hooks:
@@ -236,7 +236,7 @@ to shorten future installation times:
     # update cache
     post-deploy  tar -czf $DEPLOY_PATH/cache.gz node_modules
 
-See the [`setup`](#setup) and [`ref`](#deploy) commands to learn exactly when and where hooks are executed.
+See the [`setup`](#setup) and [`rev`](#deploy) commands to learn exactly when and where hooks are executed.
 
 ## Configuration properties
 
@@ -359,7 +359,7 @@ This is what **deploy** will do during setup:
 
 <a name="deploy"></a>
 
-### `<env> ref [-f|--force] [ref]`
+### `<env> rev [-f|--force] [rev]`
 
 **Deploy a new release** from the latest changes in the Git repository.
 
@@ -367,8 +367,8 @@ For each deployment, a new release directory will be created in `releases` in th
 The name of a release directory is the current date and time in the `YYYY-MM-DD-HH-MM-SS` format.
 (You can list deployed releases with the [list command](#list).)
 
-You must provide a Git reference to a **commit, branch or tag** to deploy,
-either as the `[ref]` argument, with the `ref` config key or the `$DEPLOY_REF` variable.
+You must provide a Git revision, i.e. a **commit, branch or tag** to deploy,
+either as the `[rev]` argument, with the `rev` config key or the `$DEPLOY_REV` variable.
 
 If your Git repository is **private**, make sure that the deployment user has access to it.
 
@@ -383,7 +383,7 @@ This is what **deploy** will do during deployment:
 
 * Fetch the latest changes from the repository.
 
-* Create the new release directory and extract the source at the specified ref into it.
+* Create the new release directory and extract the source at the specified revision into it.
 
 * Run user-defined deploy hooks (if any) in the new release directory.
   You should define **deploy hooks** to build your application or install its dependencies at this stage.
@@ -481,7 +481,7 @@ $> deploy production list
 2017-04-01-00-00-00
 ```
 
-### `update [--prefix dir] [--path path] [ref]`
+### `update [--prefix dir] [--path path] [rev]`
 
 Updates **deploy** to the latest version by downloading it from the Git repository and installing it at `/usr/local/bin/deploy` (by default).
 
@@ -493,7 +493,7 @@ In addition to the basic requirements, this sub-command also requires `chmod`, `
 * If a **`--path <file>`** file is specified, the script will be installed there
   (this *ignores* the `--prefix` option).
 
-* The optional **`[ref]`** argument is the Git revision at which to install the script.
+* The optional **`[rev]`** argument is the Git revision at which to install the script.
   This defaults to `master`.
 
 The installation path must be a writable file or not exist.

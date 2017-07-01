@@ -90,13 +90,13 @@ deploy       rake assets:precompile
 post-deploy  rails server
 </code></pre><p>Now run <strong>deploy</strong>!</p>
 <pre><code class="lang-sh">deploy production setup
-deploy production ref master
+deploy production rev master
 </code></pre>
 <p>It will:</p>
 <ul>
 <li>Connect to <code>my.server.com</code> as the <code>deploy</code> user through SSH</li>
 <li>The <code>setup</code> command will set up a deployment structure and clone your repository</li>
-<li>The second <code>ref</code> command will checkout the latest version of your <code>master</code> branch and run the deployment hooks you defined (<code>deploy</code> and <code>post-deploy</code> in the configuration file)</li>
+<li>The second <code>rev</code> command will checkout the latest version of your <code>master</code> branch and run the deployment hooks you defined (<code>deploy</code> and <code>post-deploy</code> in the configuration file)</li>
 </ul>
 <p>Read on to learn what to write in the <a href="#configuration-file">configuration file</a> or how to use each <a href="#sub-commands">sub-command</a>.</p>
 
@@ -109,29 +109,29 @@ deploy production ref master
 
   Options:
 
-    -C, --<span class="hljs-built_in">chdir</span> &lt;path&gt;    change the working directory to &lt;path&gt;
-    -c, --config &lt;path&gt;   <span class="hljs-built_in">set</span> config path. defaults to ./deploy.conf
-    -V, --version         output program version
-    -h, --<span class="hljs-built_in">help</span>            output <span class="hljs-built_in">help</span> information
+    -C, --<span class="hljs-built_in">chdir</span> &lt;path&gt;    change the working directory
+    -c, --config &lt;path&gt;   <span class="hljs-built_in">set</span> config file path (defaults to ./deploy.conf)
+    -V, --version         output current version
+    -h, --<span class="hljs-built_in">help</span>            output usage information
 
   Deployment commands:
 
-    &lt;env&gt; setup                   run remote setup commands
-    &lt;env&gt; ref [-f|--force] [ref]  deploy a release (commit, branch or tag)
-    &lt;env&gt; console [path]          open an ssh session to the host
-    &lt;env&gt; <span class="hljs-built_in">exec</span> &lt;cmd&gt;              execute the given <span class="hljs-built_in">command</span> on the host
-    &lt;env&gt; list                    list previous deploy commits
+    &lt;env&gt; setup                 run remote setup commands
+    &lt;env&gt; rev [options] [rev]   deploy a release (commit, branch or tag)
+    &lt;env&gt; console [path]        open an ssh session to the host
+    &lt;env&gt; <span class="hljs-built_in">exec</span> &lt;cmd&gt;            execute the given <span class="hljs-built_in">command</span> on the host
+    &lt;env&gt; list                  list deployed releases
 
   Other commands:
 
-    [env] config [key]                             output config file, a section, or one value
-    &lt;env&gt; config-all [key]                         output all values of a config key <span class="hljs-keyword">in</span> an environment
-    update [--prefix prefix] [--path path] [ref]   update this script to the latest version
+    [env] config [key]       output config file, a section, or one value
+    &lt;env&gt; config-all [key]   output all values of a config key <span class="hljs-keyword">in</span> an environment
+    update [options] [rev]   update this script to the latest version
 
   Examples:
 
     deploy prod setup             run remote setup <span class="hljs-keyword">in</span> the prod env
-    deploy dev ref master         deploy the master branch <span class="hljs-keyword">in</span> the dev env
+    deploy dev rev master         deploy the master branch <span class="hljs-keyword">in</span> the dev env
     deploy prod <span class="hljs-built_in">exec</span> pm2 status   run <span class="hljs-string">'pm2 status'</span> <span class="hljs-keyword">in</span> the prod env
     deploy dev config user        get the value of the user key <span class="hljs-keyword">in</span> the dev env
     deploy update                 update the deploy script
@@ -472,7 +472,7 @@ deploy <span class="hljs-keyword">do</span>-it-seriously
 <p>Hooks are user-defined commands that can be run during a <em>deployment phase</em>.
 There are currently two phases defined: <strong>setup</strong> and <strong>deploy</strong>.
 The <em>setup</em> phase happens when you run the <code>setup</code> command,
-while the <em>deploy</em> phase happens when you run the <code>ref</code> command.</p>
+while the <em>deploy</em> phase happens when you run the <code>rev</code> command.</p>
 <p>There are various hooks for each phase: some that run before, some during and some after <strong>deploy</strong> does its thing.
 These are the currently available hooks:</p>
 <pre><code>pre-setup
@@ -553,7 +553,7 @@ post-deploy  tar -czf <span class="hljs-variable">$DEPLOY_PATH</span>/cache.gz n
               <div class="pilwrap ">
                 <a class="pilcrow" href="#section-15">&#182;</a>
               </div>
-              <p>See the <a href="#setup"><code>setup</code></a> and <a href="#deploy"><code>ref</code></a> commands to learn exactly when and where hooks are executed.</p>
+              <p>See the <a href="#setup"><code>setup</code></a> and <a href="#deploy"><code>rev</code></a> commands to learn exactly when and where hooks are executed.</p>
 
             </div>
             
@@ -963,7 +963,7 @@ deploy --config foo.conf production setup
       console) open_remote_console <span class="hljs-variable">$@</span>; <span class="hljs-built_in">exit</span> ;;
       setup) setup <span class="hljs-variable">$@</span>; <span class="hljs-built_in">exit</span> ;;
       list) list_releases; <span class="hljs-built_in">exit</span> ;;
-      ref) deploy_ref <span class="hljs-variable">$@</span>; <span class="hljs-built_in">exit</span> ;;
+      rev) deploy_rev <span class="hljs-variable">$@</span>; <span class="hljs-built_in">exit</span> ;;
       update) update_self <span class="hljs-variable">$@</span>; <span class="hljs-built_in">exit</span> ;;
       config) config <span class="hljs-variable">$@</span>; <span class="hljs-built_in">exit</span> ;;
       config-all) config_all <span class="hljs-variable">$@</span>; <span class="hljs-built_in">exit</span> ;;
@@ -1157,12 +1157,12 @@ Note that this directory <strong>must already exist</strong> on the host and be 
               <div class="pilwrap ">
                 <a class="pilcrow" href="#section-45">&#182;</a>
               </div>
-              <h3 id="-env-ref-f-force-ref-"><code>&lt;env&gt; ref [-f|--force] [ref]</code></h3>
+              <h3 id="-env-rev-f-force-rev-"><code>&lt;env&gt; rev [-f|--force] [rev]</code></h3>
 <p><strong>Deploy a new release</strong> from the latest changes in the Git repository.</p>
 
             </div>
             
-            <div class="content"><div class='highlight'><pre><span class="hljs-function"><span class="hljs-title">deploy_ref</span></span>() {
+            <div class="content"><div class='highlight'><pre><span class="hljs-function"><span class="hljs-title">deploy_rev</span></span>() {
   require_env</pre></div></div>
             
         </li>
@@ -1195,22 +1195,22 @@ The name of a release directory is the current date and time in the <code>YYYY-M
               <div class="pilwrap ">
                 <a class="pilcrow" href="#section-47">&#182;</a>
               </div>
-              <p>You must provide a Git reference to a <strong>commit, branch or tag</strong> to deploy,
-either as the <code>[ref]</code> argument, with the <code>ref</code> config key or the <code>$DEPLOY_REF</code> variable.</p>
+              <p>You must provide a Git revision, i.e. a <strong>commit, branch or tag</strong> to deploy,
+either as the <code>[rev]</code> argument, with the <code>rev</code> config key or the <code>$DEPLOY_REV</code> variable.</p>
 <p>If your Git repository is <strong>private</strong>, make sure that the deployment user has access to it.</p>
 <p>Note that <strong>deploy</strong> will refuse to deploy unless all your local changes are committed and pushed.
 You can override this behavior with the <code>-f|--force</code> option (or the <code>$DEPLOY_FORCE</code> variable).</p>
 
             </div>
             
-            <div class="content"><div class='highlight'><pre>  <span class="hljs-built_in">local</span> ref=
+            <div class="content"><div class='highlight'><pre>  <span class="hljs-built_in">local</span> rev=
   <span class="hljs-keyword">while</span> <span class="hljs-built_in">test</span> <span class="hljs-variable">$#</span> -ne 0; <span class="hljs-keyword">do</span>
     arg=<span class="hljs-variable">$1</span>; <span class="hljs-built_in">shift</span>
     <span class="hljs-keyword">case</span> <span class="hljs-variable">$arg</span> <span class="hljs-keyword">in</span>
       -f|--force) DEPLOY_FORCE=1 ;;
       *)
-        <span class="hljs-keyword">if</span> <span class="hljs-built_in">test</span> -z <span class="hljs-string">"<span class="hljs-variable">$ref</span>"</span>; <span class="hljs-keyword">then</span>
-          ref=<span class="hljs-string">"<span class="hljs-variable">$arg</span>"</span>
+        <span class="hljs-keyword">if</span> <span class="hljs-built_in">test</span> -z <span class="hljs-string">"<span class="hljs-variable">$rev</span>"</span>; <span class="hljs-keyword">then</span>
+          rev=<span class="hljs-string">"<span class="hljs-variable">$arg</span>"</span>
         <span class="hljs-keyword">else</span>
           abort <span class="hljs-string">"unknown command or option <span class="hljs-variable">$arg</span>"</span>
         <span class="hljs-keyword">fi</span>
@@ -1220,8 +1220,8 @@ You can override this behavior with the <code>-f|--force</code> option (or the <
 
   require_no_local_changes
 
-  <span class="hljs-built_in">test</span> -z <span class="hljs-string">"<span class="hljs-variable">$ref</span>"</span> &amp;&amp; ref=$(get_last_config_key_value ref)
-  <span class="hljs-built_in">test</span> -n <span class="hljs-string">"<span class="hljs-variable">$ref</span>"</span> || abort <span class="hljs-string">"no commit, branch or tag specified"</span></pre></div></div>
+  <span class="hljs-built_in">test</span> -z <span class="hljs-string">"<span class="hljs-variable">$rev</span>"</span> &amp;&amp; rev=$(get_last_config_key_value rev)
+  <span class="hljs-built_in">test</span> -n <span class="hljs-string">"<span class="hljs-variable">$rev</span>"</span> || abort <span class="hljs-string">"no commit, branch or tag specified"</span></pre></div></div>
             
         </li>
         
@@ -1237,7 +1237,7 @@ You can override this behavior with the <code>-f|--force</code> option (or the <
             </div>
             
             <div class="content"><div class='highlight'><pre>  <span class="hljs-built_in">log</span> deploying
-  <span class="hljs-built_in">echo</span> <span class="hljs-string">"    ref: <span class="hljs-variable">$ref</span>"</span>
+  <span class="hljs-built_in">echo</span> <span class="hljs-string">"    revision: <span class="hljs-variable">$rev</span>"</span>
   <span class="hljs-built_in">echo</span> <span class="hljs-string">"    release: <span class="hljs-variable">$release</span>"</span></pre></div></div>
             
         </li>
@@ -1277,7 +1277,7 @@ You may define <strong>pre-deploy hooks</strong> to perform any task you might w
             <div class="content"><div class='highlight'><pre>  <span class="hljs-built_in">log</span> fetching updates
   run <span class="hljs-string">"cd <span class="hljs-variable">$path</span>/repo \
        &amp;&amp; git fetch origin '+refs/heads/*:refs/heads/*' \
-       &amp;&amp; git rev-list -n 1 <span class="hljs-variable">$ref</span>"</span> \
+       &amp;&amp; git rev-list -n 1 <span class="hljs-variable">$rev</span>"</span> \
     || abort <span class="hljs-string">"could not fetch changes"</span></pre></div></div>
             
         </li>
@@ -1290,15 +1290,15 @@ You may define <strong>pre-deploy hooks</strong> to perform any task you might w
                 <a class="pilcrow" href="#section-51">&#182;</a>
               </div>
               <ul>
-<li>Create the new release directory and extract the source at the specified ref into it.</li>
+<li>Create the new release directory and extract the source at the specified revision into it.</li>
 </ul>
 
             </div>
             
-            <div class="content"><div class='highlight'><pre>  <span class="hljs-built_in">log</span> <span class="hljs-string">"extracting source at <span class="hljs-variable">$ref</span>"</span>
+            <div class="content"><div class='highlight'><pre>  <span class="hljs-built_in">log</span> <span class="hljs-string">"extracting source at <span class="hljs-variable">$rev</span>"</span>
   run <span class="hljs-string">"cd <span class="hljs-variable">$path</span>/repo \
        &amp;&amp; mkdir -p <span class="hljs-variable">$release_dir</span> \
-       &amp;&amp; git archive --output <span class="hljs-variable">$tmp_dir</span>/release-<span class="hljs-variable">$release</span>.tar <span class="hljs-variable">$ref</span> \
+       &amp;&amp; git archive --output <span class="hljs-variable">$tmp_dir</span>/release-<span class="hljs-variable">$release</span>.tar <span class="hljs-variable">$rev</span> \
        &amp;&amp; tar -C <span class="hljs-variable">$release_dir</span> -x --file <span class="hljs-variable">$tmp_dir</span>/release-<span class="hljs-variable">$release</span>.tar \
        &amp;&amp; rm -f <span class="hljs-variable">$tmp_dir</span>/release-*.tar"</span> \
     || abort <span class="hljs-string">"could not extract source from repository"</span></pre></div></div>
@@ -1644,13 +1644,13 @@ root
               <div class="pilwrap ">
                 <a class="pilcrow" href="#section-67">&#182;</a>
               </div>
-              <h3 id="-update-prefix-dir-path-path-ref-"><code>update [--prefix dir] [--path path] [ref]</code></h3>
+              <h3 id="-update-prefix-dir-path-path-rev-"><code>update [--prefix dir] [--path path] [rev]</code></h3>
 <p>Updates <strong>deploy</strong> to the latest version by downloading it from the Git repository and installing it at <code>/usr/local/bin/deploy</code> (by default).</p>
 
             </div>
             
             <div class="content"><div class='highlight'><pre><span class="hljs-function"><span class="hljs-title">update_self</span></span>() {
-  <span class="hljs-built_in">local</span> ref=
+  <span class="hljs-built_in">local</span> rev=
   <span class="hljs-built_in">local</span> path=
   <span class="hljs-built_in">local</span> prefix=/usr/<span class="hljs-built_in">local</span></pre></div></div>
             
@@ -1721,15 +1721,15 @@ at <code>bin/deploy</code> relative to that directory.</li>
                 <a class="pilcrow" href="#section-71">&#182;</a>
               </div>
               <ul>
-<li>The optional <strong><code>[ref]</code></strong> argument is the Git revision at which to install the script.
+<li>The optional <strong><code>[rev]</code></strong> argument is the Git revision at which to install the script.
 This defaults to <code>master</code>.</li>
 </ul>
 
             </div>
             
             <div class="content"><div class='highlight'><pre>      *)
-        <span class="hljs-keyword">if</span> <span class="hljs-built_in">test</span> -z <span class="hljs-string">"<span class="hljs-variable">$ref</span>"</span>; <span class="hljs-keyword">then</span>
-          ref=<span class="hljs-string">"<span class="hljs-variable">$arg</span>"</span>
+        <span class="hljs-keyword">if</span> <span class="hljs-built_in">test</span> -z <span class="hljs-string">"<span class="hljs-variable">$rev</span>"</span>; <span class="hljs-keyword">then</span>
+          rev=<span class="hljs-string">"<span class="hljs-variable">$arg</span>"</span>
         <span class="hljs-keyword">else</span>
           abort <span class="hljs-string">"unknown command or option <span class="hljs-variable">$arg</span>"</span>
         <span class="hljs-keyword">fi</span>
@@ -1761,8 +1761,8 @@ If the installation path does not already exist, its parent must be a writable d
   <span class="hljs-built_in">test</span> -f <span class="hljs-string">"<span class="hljs-variable">$path</span>"</span> || <span class="hljs-built_in">test</span> -d <span class="hljs-string">"<span class="hljs-variable">$dir</span>"</span> || abort <span class="hljs-string">"<span class="hljs-variable">$dir</span> is not a directory"</span>
   <span class="hljs-built_in">test</span> -f <span class="hljs-string">"<span class="hljs-variable">$path</span>"</span> || <span class="hljs-built_in">test</span> -w <span class="hljs-string">"<span class="hljs-variable">$path</span>"</span> || abort <span class="hljs-string">"<span class="hljs-variable">$dir</span> is not writable"</span>
 
-  <span class="hljs-built_in">test</span> -z <span class="hljs-string">"<span class="hljs-variable">$ref</span>"</span> &amp;&amp; ref=master
-  <span class="hljs-built_in">log</span> <span class="hljs-string">"updating deploy from <span class="hljs-variable">$ref</span> @ <span class="hljs-variable">$DEPLOY_UPDATE_REPO</span>"</span></pre></div></div>
+  <span class="hljs-built_in">test</span> -z <span class="hljs-string">"<span class="hljs-variable">$rev</span>"</span> &amp;&amp; rev=master
+  <span class="hljs-built_in">log</span> <span class="hljs-string">"updating deploy from <span class="hljs-variable">$rev</span> @ <span class="hljs-variable">$DEPLOY_UPDATE_REPO</span>"</span></pre></div></div>
             
         </li>
         
@@ -1796,9 +1796,9 @@ If the installation path does not already exist, its parent must be a writable d
             <div class="content"><div class='highlight'><pre>  <span class="hljs-built_in">cd</span> <span class="hljs-string">"<span class="hljs-variable">$tmp_dir</span>"</span> \
     &amp;&amp; git <span class="hljs-built_in">clone</span> <span class="hljs-variable">$DEPLOY_UPDATE_REPO</span> <span class="hljs-string">"<span class="hljs-variable">$tmp_dir</span>"</span> || abort could not <span class="hljs-built_in">clone</span> <span class="hljs-variable">$DEPLOY_UPDATE_REPO</span> \
     &amp;&amp; { \
-      git rev-parse --verify <span class="hljs-variable">$ref</span> &amp;&gt;/dev/null &amp;&amp; git reset --hard <span class="hljs-variable">$ref</span> \
-      || { git fetch origin <span class="hljs-variable">$ref</span> &amp;&amp; git reset --hard origin/<span class="hljs-variable">$ref</span>; }; \
-    } || abort could not find <span class="hljs-variable">$ref</span> \
+      git rev-parse --verify <span class="hljs-variable">$rev</span> &amp;&gt;/dev/null &amp;&amp; git reset --hard <span class="hljs-variable">$rev</span> \
+      || { git fetch origin <span class="hljs-variable">$rev</span> &amp;&amp; git reset --hard origin/<span class="hljs-variable">$rev</span>; }; \
+    } || abort could not find <span class="hljs-variable">$rev</span> \
     &amp;&amp; cp bin/deploy <span class="hljs-variable">$path</span> \
     &amp;&amp; chmod +x /usr/<span class="hljs-built_in">local</span>/bin/deploy \
     || abort could not update deploy

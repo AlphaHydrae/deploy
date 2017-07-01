@@ -46,13 +46,13 @@ DEFAULT_UPDATE_REPO=git://github.com/AlphaHydrae/deploy.git
 #
 # ```sh
 # deploy production setup
-# deploy production ref master
+# deploy production rev master
 # ```
 #
 # It will:
 # * Connect to `my.server.com` as the `deploy` user through SSH
 # * The `setup` command will set up a deployment structure and clone your repository
-# * The second `ref` command will checkout the latest version of your `master` branch and run the deployment hooks you defined (`deploy` and `post-deploy` in the configuration file)
+# * The second `rev` command will checkout the latest version of your `master` branch and run the deployment hooks you defined (`deploy` and `post-deploy` in the configuration file)
 #
 # Read on to learn what to write in the [configuration file](#configuration-file) or how to use each [sub-command](#sub-commands).
 usage() {
@@ -62,29 +62,29 @@ usage() {
 
   Options:
 
-    -C, --chdir <path>    change the working directory to <path>
-    -c, --config <path>   set config path. defaults to ./deploy.conf
-    -V, --version         output program version
-    -h, --help            output help information
+    -C, --chdir <path>    change the working directory
+    -c, --config <path>   set config file path (defaults to ./deploy.conf)
+    -V, --version         output current version
+    -h, --help            output usage information
 
   Deployment commands:
 
-    <env> setup                   run remote setup commands
-    <env> ref [-f|--force] [ref]  deploy a release (commit, branch or tag)
-    <env> console [path]          open an ssh session to the host
-    <env> exec <cmd>              execute the given command on the host
-    <env> list                    list previous deploy commits
+    <env> setup                 run remote setup commands
+    <env> rev [options] [rev]   deploy a release (commit, branch or tag)
+    <env> console [path]        open an ssh session to the host
+    <env> exec <cmd>            execute the given command on the host
+    <env> list                  list deployed releases
 
   Other commands:
 
-    [env] config [key]                             output config file, a section, or one value
-    <env> config-all [key]                         output all values of a config key in an environment
-    update [--prefix prefix] [--path path] [ref]   update this script to the latest version
+    [env] config [key]       output config file, a section, or one value
+    <env> config-all [key]   output all values of a config key in an environment
+    update [options] [rev]   update this script to the latest version
 
   Examples:
 
     deploy prod setup             run remote setup in the prod env
-    deploy dev ref master         deploy the master branch in the dev env
+    deploy dev rev master         deploy the master branch in the dev env
     deploy prod exec pm2 status   run 'pm2 status' in the prod env
     deploy dev config user        get the value of the user key in the dev env
     deploy update                 update the deploy script
@@ -338,7 +338,7 @@ get_config_key_values_inherited() {
 # Hooks are user-defined commands that can be run during a *deployment phase*.
 # There are currently two phases defined: **setup** and **deploy**.
 # The *setup* phase happens when you run the `setup` command,
-# while the *deploy* phase happens when you run the `ref` command.
+# while the *deploy* phase happens when you run the `rev` command.
 #
 # There are various hooks for each phase: some that run before, some during and some after **deploy** does its thing.
 # These are the currently available hooks:
@@ -400,7 +400,7 @@ run_hooks() {
   IFS="$old_ifs"
 }
 
-# See the [`setup`](#setup) and [`ref`](#deploy) commands to learn exactly when and where hooks are executed.
+# See the [`setup`](#setup) and [`rev`](#deploy) commands to learn exactly when and where hooks are executed.
 
 
 
@@ -542,7 +542,7 @@ main() {
       console) open_remote_console $@; exit ;;
       setup) setup $@; exit ;;
       list) list_releases; exit ;;
-      ref) deploy_ref $@; exit ;;
+      rev) deploy_rev $@; exit ;;
       update) update_self $@; exit ;;
       config) config $@; exit ;;
       config-all) config_all $@; exit ;;
@@ -637,10 +637,10 @@ setup() {
 
 # <a name="deploy"></a>
 
-# ### `<env> ref [-f|--force] [ref]`
+# ### `<env> rev [-f|--force] [rev]`
 #
 # **Deploy a new release** from the latest changes in the Git repository.
-deploy_ref() {
+deploy_rev() {
   require_env
 
   # For each deployment, a new release directory will be created in `releases` in the deployment directory.
@@ -652,21 +652,21 @@ deploy_ref() {
   local release_dir="$path/releases/$release"
   local tmp_dir="$path/tmp"
 
-  # You must provide a Git reference to a **commit, branch or tag** to deploy,
-  # either as the `[ref]` argument, with the `ref` config key or the `$DEPLOY_REF` variable.
+  # You must provide a Git revision, i.e. a **commit, branch or tag** to deploy,
+  # either as the `[rev]` argument, with the `rev` config key or the `$DEPLOY_REV` variable.
   #
   # If your Git repository is **private**, make sure that the deployment user has access to it.
   #
   # Note that **deploy** will refuse to deploy unless all your local changes are committed and pushed.
   # You can override this behavior with the `-f|--force` option (or the `$DEPLOY_FORCE` variable).
-  local ref=
+  local rev=
   while test $# -ne 0; do
     arg=$1; shift
     case $arg in
       -f|--force) DEPLOY_FORCE=1 ;;
       *)
-        if test -z "$ref"; then
-          ref="$arg"
+        if test -z "$rev"; then
+          rev="$arg"
         else
           abort "unknown command or option $arg"
         fi
@@ -676,12 +676,12 @@ deploy_ref() {
 
   require_no_local_changes
 
-  test -z "$ref" && ref=$(get_last_config_key_value ref)
-  test -n "$ref" || abort "no commit, branch or tag specified"
+  test -z "$rev" && rev=$(get_last_config_key_value rev)
+  test -n "$rev" || abort "no commit, branch or tag specified"
 
   # This is what **deploy** will do during deployment:
   log deploying
-  echo "    ref: $ref"
+  echo "    revision: $rev"
   echo "    release: $release"
 
   # * Run user-defined pre-deploy hooks (if any) in the directory of the **previous release**.
@@ -693,14 +693,14 @@ deploy_ref() {
   log fetching updates
   run "cd $path/repo \
        && git fetch origin '+refs/heads/*:refs/heads/*' \
-       && git rev-list -n 1 $ref" \
+       && git rev-list -n 1 $rev" \
     || abort "could not fetch changes"
 
-  # * Create the new release directory and extract the source at the specified ref into it.
-  log "extracting source at $ref"
+  # * Create the new release directory and extract the source at the specified revision into it.
+  log "extracting source at $rev"
   run "cd $path/repo \
        && mkdir -p $release_dir \
-       && git archive --output $tmp_dir/release-$release.tar $ref \
+       && git archive --output $tmp_dir/release-$release.tar $rev \
        && tar -C $release_dir -x --file $tmp_dir/release-$release.tar \
        && rm -f $tmp_dir/release-*.tar" \
     || abort "could not extract source from repository"
@@ -856,11 +856,11 @@ list_releases() {
   run "ls -1 $path/releases"
 }
 
-# ### `update [--prefix dir] [--path path] [ref]`
+# ### `update [--prefix dir] [--path path] [rev]`
 #
 # Updates **deploy** to the latest version by downloading it from the Git repository and installing it at `/usr/local/bin/deploy` (by default).
 update_self() {
-  local ref=
+  local rev=
   local path=
   local prefix=/usr/local
 
@@ -878,11 +878,11 @@ update_self() {
       # * If a **`--path <file>`** file is specified, the script will be installed there
       #   (this *ignores* the `--prefix` option).
       --path) path="$1"; shift ;;
-      # * The optional **`[ref]`** argument is the Git revision at which to install the script.
+      # * The optional **`[rev]`** argument is the Git revision at which to install the script.
       #   This defaults to `master`.
       *)
-        if test -z "$ref"; then
-          ref="$arg"
+        if test -z "$rev"; then
+          rev="$arg"
         else
           abort "unknown command or option $arg"
         fi
@@ -902,8 +902,8 @@ update_self() {
   test -f "$path" || test -d "$dir" || abort "$dir is not a directory"
   test -f "$path" || test -w "$path" || abort "$dir is not writable"
 
-  test -z "$ref" && ref=master
-  log "updating deploy from $ref @ $DEPLOY_UPDATE_REPO"
+  test -z "$rev" && rev=master
+  log "updating deploy from $rev @ $DEPLOY_UPDATE_REPO"
 
   # To perform the update, **deploy** will download its Git repository into a temporary directory that will be cleaned up when the update is done (or fails).
   local tmp_dir=`mktemp -d -t deploy`
@@ -913,9 +913,9 @@ update_self() {
   cd "$tmp_dir" \
     && git clone $DEPLOY_UPDATE_REPO "$tmp_dir" || abort could not clone $DEPLOY_UPDATE_REPO \
     && { \
-      git rev-parse --verify $ref &>/dev/null && git reset --hard $ref \
-      || { git fetch origin $ref && git reset --hard origin/$ref; }; \
-    } || abort could not find $ref \
+      git rev-parse --verify $rev &>/dev/null && git reset --hard $rev \
+      || { git fetch origin $rev && git reset --hard origin/$rev; }; \
+    } || abort could not find $rev \
     && cp bin/deploy $path \
     && chmod +x /usr/local/bin/deploy \
     || abort could not update deploy
