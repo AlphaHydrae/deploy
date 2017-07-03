@@ -474,7 +474,7 @@ build_export_env_command() {
   #       # deploy.conf
   #       env FOO=BAR
   #       env BAZ=QUX CORGE=GRAULT
-  env_command="$command $(echo `get_all_config_key_values env`|sed 's/\n/ /g')"
+  env_command="$env_command $(echo `get_all_config_key_values env`|sed 's/\n/ /g')"
 
   # * **`forward-env <NAME>...`** defines the name(s) of one or multiple local environment variables
   #   to export on the host when running hooks.

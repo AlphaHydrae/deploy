@@ -792,7 +792,7 @@ env BAZ=QUX CORGE=GRAULT
 
             </div>
             
-            <div class="content"><div class='highlight'><pre>  env_command=<span class="hljs-string">"<span class="hljs-variable">$command</span> <span class="hljs-variable">$(echo `get_all_config_key_values env`|sed 's/\n/ /g')</span>"</span></pre></div></div>
+            <div class="content"><div class='highlight'><pre>  env_command=<span class="hljs-string">"<span class="hljs-variable">$env_command</span> <span class="hljs-variable">$(echo `get_all_config_key_values env`|sed 's/\n/ /g')</span>"</span></pre></div></div>
             
         </li>
         
