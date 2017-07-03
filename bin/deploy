@@ -455,7 +455,7 @@ build_ssh_command() {
 # All commands executed on the host through SSH will be logged to the console.
 run() {
   local shell="`build_ssh_command`"
-  echo_command "$@"
+  log_command "$@"
   $shell $@
 }
 

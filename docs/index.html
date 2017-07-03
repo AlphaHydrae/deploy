@@ -736,7 +736,7 @@ By default, you connect with the same name as your local user.</li>
             
             <div class="content"><div class='highlight'><pre><span class="hljs-function"><span class="hljs-title">run</span></span>() {
   <span class="hljs-built_in">local</span> shell=<span class="hljs-string">"`build_ssh_command`"</span>
-  echo_command <span class="hljs-string">"<span class="hljs-variable">$@</span>"</span>
+  log_command <span class="hljs-string">"<span class="hljs-variable">$@</span>"</span>
   <span class="hljs-variable">$shell</span> <span class="hljs-variable">$@</span>
 }</pre></div></div>
             
