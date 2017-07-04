@@ -25,12 +25,4 @@ namespace :spec do
       t.pattern = "spec/#{original_target}/*_spec.rb"
     end
   end
-
-  task start: %i(vagrant:up spec:all)
-end
-
-namespace :vagrant do
-  task :up do
-    `vagrant up #{ENV['TARGET_HOST']}`
-  end
 end

@@ -4,7 +4,9 @@ require 'securerandom'
 require 'serverspec'
 require 'shellwords'
 
-set :backend, :ssh
+set :backend, :exec
+
+=begin
 
 if ENV['ASK_SUDO_PASSWORD']
   begin
@@ -67,3 +69,4 @@ def deploy config, *args
   output = `#{args.collect{ |arg| Shellwords.escape arg.to_s }.unshift('./bin/deploy').join(' ').to_s}`
   raise output if $? != 0
 end
+=end
