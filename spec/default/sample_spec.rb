@@ -6,6 +6,18 @@ require 'shellwords'
 require 'tmpdir'
 
 describe :setup do
+  let :deploy_bin do
+    if ENV['TRAVIS']
+      file = File.join ENV[TRAVIS_BUILD_DIR], 'bin', 'deploy'
+      raise "Expected deploy script to be at #{file} in a Travis environment" unless File.exist? file
+      file
+    elsif File.exist? '/vagrant'
+      '/vagrant/bin/deploy'
+    else
+      raise "Unknown environment"
+    end
+  end
+
   let(:deployer_user){ `echo -n $USER` }
   let(:server_user){ deployer_user }
 
@@ -55,7 +67,7 @@ rev master
 
   def deploy *args, &block
     options = args.last.kind_of?(Hash) ? args.pop : {}
-    command = args.unshift('/vagrant/bin/deploy').collect{ |arg| Shellwords.escape arg.to_s }.join(' ')
+    command = args.unshift(deploy_bin).collect{ |arg| Shellwords.escape arg.to_s }.join(' ')
     output = `#{command}`
     puts output unless $?.success?
   end
