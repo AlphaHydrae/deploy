@@ -1,20 +1,19 @@
 require 'etc'
 require 'fileutils'
+require 'git'
 require 'spec_helper'
 require 'shellwords'
 require 'tmpdir'
 
 describe :setup do
-  let(:deployer_user){ 'vagrant' }
-  let(:deploy_user){ 'deploy' }
+  let(:deployer_user){ `echo -n $USER` }
+  let(:server_user){ deployer_user }
 
   around :each do |example|
     Dir.mktmpdir do |deployer_tmp|
-      Dir.mktmpdir do |deploy_tmp|
-        FileUtils.chown deployer_user, deployer_user, deployer_tmp
-        FileUtils.chown deploy_user, deploy_user, deploy_tmp
+      Dir.mktmpdir do |server_tmp|
         @deployer_tmp = deployer_tmp
-        @deploy_tmp = deploy_tmp
+        @server_tmp = server_tmp
         example.run
       end
     end
@@ -23,23 +22,24 @@ describe :setup do
   it "should work" do
     config_file = deploy_config! <<-CONFIG
 [main]
-user #{deploy_user}
+user #{server_user}
 host localhost
 port 22
-repo file://#{@deploy_tmp}/src
-path #{@deploy_tmp}/deploy
+repo file://#{@server_tmp}/src
+path #{@server_tmp}/deploy
 rev master
     CONFIG
 
     puts File.read(config_file)
 
-    Process.uid = Etc.getpwnam(deploy_user).uid
-    raise 'bug' unless system "mkdir -p #{@deploy_tmp}/deploy"
-    Dir.chdir @deploy_tmp
-    raise 'bug' unless system 'mkdir src && cd src && git init'
-    puts `ls -la #{@deploy_tmp}`
+    src_dir = File.join @server_tmp, 'src'
+    deploy_dir = File.join @server_tmp, 'deploy'
 
-    Process.uid = Etc.getpwnam(deployer_user).uid
+    FileUtils.mkdir_p src_dir
+    FileUtils.mkdir_p deploy_dir
+
+    repo src_dir
+
     Dir.chdir @deployer_tmp
     deploy :main, :setup
   end
@@ -47,7 +47,6 @@ rev master
   def deploy_config! config
     config_file = File.join @deployer_tmp, 'deploy.conf'
     File.open(config_file, 'w'){ |f| f.write config.to_s }
-    FileUtils.chown deployer_user, deployer_user, config_file
     config_file
   end
 
@@ -57,7 +56,13 @@ rev master
   end
 
   def repo path
-    
+    g = Git.init path
+    g.config 'user.name', 'John Doe'
+    g.config 'user.email', 'jdoe@example.com'
+    File.open(File.join(path, 'foo'), 'w'){ |f| f.write 'bar' }
+    g.add 'foo'
+    g.commit 'One file'
+    g
   end
 =begin
   def self.options
