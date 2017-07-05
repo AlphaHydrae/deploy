@@ -40,12 +40,11 @@ rev master
 
     repo src_dir
 
-    puts "@@@@@@@ deployer_tmp = #{@deployer_tmp}"
-    puts "@@@@@@@ deployer_tmp entries = #{Dir.entries @deployer_tmp}"
     Dir.chdir @deployer_tmp do
-      puts "@@@@@@@ deployer_tmp entries = #{Dir.entries @deployer_tmp}"
       deploy :main, :setup
     end
+
+    expect_setup deploy_dir
   end
 
   def deploy_config! config
@@ -56,7 +55,9 @@ rev master
 
   def deploy *args, &block
     options = args.last.kind_of?(Hash) ? args.pop : {}
-    system args.unshift('/vagrant/bin/deploy').collect(&:to_s).join(' ')
+    command = args.unshift('/vagrant/bin/deploy').collect{ |arg| Shellwords.escape arg.to_s }.join(' ')
+    output = `#{command}`
+    puts output unless $?.success?
   end
 
   def repo path
@@ -68,6 +69,16 @@ rev master
     g.commit 'One file'
     g
   end
+
+  def expect_setup path
+    releases_dir = file(File.join(path, 'releases'))
+    puts `ls -la #{path}`
+    expect(releases_dir).to be_directory
+    #expect(releases_dir).to be_mode(755)
+    expect(releases_dir).to be_owned_by(server_user)
+    expect(releases_dir).to be_grouped_into(server_user)
+  end
+
 =begin
   def self.options
     @options ||= deploy_options

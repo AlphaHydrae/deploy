@@ -8,7 +8,7 @@ Vagrant.configure('2') do |config|
     apt-get install -y ruby
     gem install --no-ri --no-rdoc bundler
     cd /vagrant && bundle install
-    /vagrant/spec/scripts/init.sh
+    su - ubuntu -c /vagrant/spec/scripts/init.sh
   SHELL
 end
 
