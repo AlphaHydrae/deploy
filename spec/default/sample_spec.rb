@@ -42,8 +42,10 @@ rev master
 
     puts "@@@@@@@ deployer_tmp = #{@deployer_tmp}"
     puts "@@@@@@@ deployer_tmp entries = #{Dir.entries @deployer_tmp}"
-    Dir.chdir @deployer_tmp
-    deploy :main, :setup
+    Dir.chdir @deployer_tmp do
+      puts "@@@@@@@ deployer_tmp entries = #{Dir.entries @deployer_tmp}"
+      deploy :main, :setup
+    end
   end
 
   def deploy_config! config

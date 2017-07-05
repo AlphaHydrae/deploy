@@ -28,6 +28,6 @@ grep -q "$SSH_PUBLIC_KEY" $SSH_AUTHORIZED_KEYS_FILE 2>/dev/null \
   && echo "ssh key already authorized" \
   || { \
     echo "adding ssh key to authorized key" \
-    echo "$SSH_PUBLIC_KEY" >> $SSH_AUTHORIZED_KEYS_FILE \
+    && echo "$SSH_PUBLIC_KEY" >> $SSH_AUTHORIZED_KEYS_FILE \
     || abort "could not add ssh key to authorized keys for $USER" \
   ; }
