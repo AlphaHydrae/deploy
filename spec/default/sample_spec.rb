@@ -40,6 +40,8 @@ rev master
 
     repo src_dir
 
+    puts "@@@@@@@ deployer_tmp = #{@deployer_tmp}"
+    puts "@@@@@@@ deployer_tmp entries = #{Dir.entries @deployer_tmp}"
     Dir.chdir @deployer_tmp
     deploy :main, :setup
   end

@@ -20,13 +20,9 @@ test -f $SSH_PUBLIC_KEY_FILE \
 
 SSH_PUBLIC_KEY="$(head -n 1 $SSH_PUBLIC_KEY_FILE)"
 
-test -f $SSH_KNOWN_HOSTS_FILE \
-  && echo "$SSH_KNOWN_HOSTS_FILE exists" \
-  || { \
-    echo "adding localhost to ssh known hosts" \
-    && ssh-keyscan -H localhost 2>/dev/null > $SSH_KNOWN_HOSTS_FILE \
-    || abort "could not add localhost to ssh known hosts for $USER" \
-  ; }
+echo "adding localhost to ssh known hosts" \
+  && ssh-keyscan -H localhost 2>/dev/null > $SSH_KNOWN_HOSTS_FILE \
+  || abort "could not add localhost to ssh known hosts for $USER"
 
 grep -q "$SSH_PUBLIC_KEY" $SSH_AUTHORIZED_KEYS_FILE 2>/dev/null \
   && echo "ssh key already authorized" \
