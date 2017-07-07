@@ -8,12 +8,6 @@ RSpec.configure do |config|
   config.include FileSystemSupport
   config.include HostSupport
 
-  config.add_setting :umask
-
-  config.before :suite do
-    RSpec.configuration.umask = `ssh $USER@localhost umask`.strip.to_i(8)
-  end
-
   config.around :each do |example|
     Dir.mktmpdir do |deployer_tmp|
       Dir.mktmpdir do |server_tmp|

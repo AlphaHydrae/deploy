@@ -6,7 +6,7 @@ module CliSupport
   def deploy *args
     options = args.last.kind_of?(Hash) ? args.pop : {}
     command = args.unshift(deploy_bin).collect{ |arg| Shellwords.escape arg.to_s }.join(' ')
-    run command: command, cwd: options[:cwd]
+    run command: command, cwd: options[:cwd] || @deployer_tmp
   end
 
   def run command:, cwd:

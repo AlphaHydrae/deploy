@@ -4,7 +4,7 @@ module FileSystemSupport
   end
 
   def umask
-    RSpec.configuration.umask
+    @@umask ||= `ssh $USER@localhost umask`.strip.to_i(8)
   end
 
   def umask_digit i
