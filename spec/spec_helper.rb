@@ -11,7 +11,7 @@ RSpec.configure do |config|
   config.add_setting :umask
 
   config.before :suite do
-    RSpec.configuration.umask = File.umask
+    RSpec.configuration.umask = `ssh $USER@localhost umask`.strip.to_i(8)
   end
 
   config.around :each do |example|
