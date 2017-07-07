@@ -1,8 +1,4 @@
-require 'serverspec'
-
 Dir[File.join(File.dirname(__FILE__), 'support/**/*.rb')].each{ |f| require f }
-
-set :backend, :exec
 
 RSpec.configure do |config|
   config.include CliSupport
@@ -14,5 +10,15 @@ RSpec.configure do |config|
 
   config.before :suite do
     RSpec.configuration.umask = File.umask
+  end
+
+  config.around :each do |example|
+    Dir.mktmpdir do |deployer_tmp|
+      Dir.mktmpdir do |server_tmp|
+        @deployer_tmp = deployer_tmp
+        @server_tmp = server_tmp
+        example.run
+      end
+    end
   end
 end

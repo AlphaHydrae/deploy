@@ -1,4 +1,8 @@
 module FileSystemSupport
+  def join *args
+    File.join *args.collect(&:to_s)
+  end
+
   def umask
     RSpec.configuration.umask
   end
@@ -22,5 +26,11 @@ module FileSystemSupport
 
   def default_mode type
     [ default_permissions(0, type), default_permissions(1, type), default_permissions(2, type) ].join('')
+  end
+
+  def normalize_mode mode
+    raise "Mode must be an integer or string" unless mode.kind_of?(String) || mode.kind_of?(Integer)
+    mode = mode.to_s 8 if mode.kind_of? Integer
+    mode.split(//).last(3).join('').rjust(3, '0')
   end
 end
