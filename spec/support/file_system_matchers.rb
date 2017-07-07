@@ -14,7 +14,7 @@ class FileMatch
     @path = path
 
     @expected_type = type.to_sym
-    @expected_mode = mode.kind_of?(Symbol) ? default_mode(mode) : mode
+    @expected_mode = normalize_mode(mode.kind_of?(Symbol) ? default_mode(mode) : mode)
     @expected_owner = (owner || server_user).to_sym
     @expected_group = (group || server_user).to_sym
 
