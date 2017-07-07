@@ -1,3 +1,5 @@
+require 'etc'
+
 module HostSupport
   def deploy_bin
     if ENV['TRAVIS']

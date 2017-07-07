@@ -1,9 +1,6 @@
-require 'etc'
 require 'fileutils'
 require 'git'
 require 'spec_helper'
-require 'shellwords'
-require 'tmpdir'
 
 describe :setup do
   it "should work" do

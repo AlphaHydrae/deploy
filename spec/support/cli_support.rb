@@ -1,5 +1,6 @@
 require 'open3'
 require 'ostruct'
+require 'shellwords'
 
 module CliSupport
   def deploy *args
