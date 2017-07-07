@@ -34,6 +34,9 @@ class FileMatch
     %i(type mode owner group).each do |attr|
       instance_variable_set("@#{attr}_matches", instance_variable_get("@actual_#{attr}") == instance_variable_get("@expected_#{attr}"))
     end
+
+    puts "@@@ #{@path} mode matches = #{@mode_matches}"
+    puts "@@@ actual = #{stat.mode}/#{@actual_mode.inspect}, expected = #{@expected_mode.inspect}, umask = #{File.umask}/#{normalize_mode(File.umask).inspect}"
   end
 
   def matches?
