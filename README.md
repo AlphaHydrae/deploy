@@ -84,6 +84,12 @@ Read on to learn what to write in the [configuration file](#configuration-file) 
 
 ## Installation
 
+With npm:
+
+```sh
+npm install -g bash-deploy
+```
+
 With curl:
 
 ```sh

@@ -101,6 +101,12 @@ EOF
 
 # ## Installation
 #
+# With npm:
+#
+# ```sh
+# npm install -g bash-deploy
+# ```
+#
 # With curl:
 #
 # ```sh
