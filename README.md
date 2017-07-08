@@ -10,7 +10,7 @@
 
 Read the [annotated source](https://alphahydrae.github.io/deploy/)
 
-Repository: [AlphaHydrae/deploy](https://github.com/AlphaHydrae/deploy) ([MIT Licensed](https://opensource.org/licenses/MIT))
+Repository: [AlphaHydrae/deploy](https://github.com/AlphaHydrae/deploy)
 
 Shamelessly inspired by: [visionmedia/deploy](https://github.com/visionmedia/deploy)
 
