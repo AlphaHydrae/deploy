@@ -44,6 +44,7 @@
                 <a class="pilcrow" href="#section-2">&#182;</a>
               </div>
               <p><strong><em>A (magic) shell script to deploy Git repositories</em></strong></p>
+<p><a href="https://travis-ci.org/AlphaHydrae/deploy"><img src="https://travis-ci.org/AlphaHydrae/deploy.svg?branch=master" alt="Build Status"></a></p>
 <p>Read the <a href="https://alphahydrae.github.io/deploy/">annotated source</a></p>
 <p>Repository: <a href="https://github.com/AlphaHydrae/deploy">AlphaHydrae/deploy</a> (<a href="https://opensource.org/licenses/MIT">MIT Licensed</a>)</p>
 <p>Shamelessly inspired by: <a href="https://github.com/visionmedia/deploy">visionmedia/deploy</a></p>
@@ -51,7 +52,7 @@
 
             </div>
             
-            <div class="content"><div class='highlight'><pre>VERSION=2.0.2
+            <div class="content"><div class='highlight'><pre>VERSION=2.0.3
 
 COLORS=
 COLOR_BOLD=1
@@ -623,7 +624,7 @@ It indicates which host or IP address to connect to.</li>
             </div>
             
             <div class="content"><div class='highlight'><pre>  <span class="hljs-built_in">local</span> host=$(get_last_config_key_value host)
-  <span class="hljs-built_in">test</span> -n <span class="hljs-string">"<span class="hljs-variable">$host</span>"</span> || abort <span class="hljs-string">"no host config found in environment <span class="hljs-variable">$DEPLOY_ENV</span>"</span>
+  <span class="hljs-built_in">test</span> -n <span class="hljs-string">"<span class="hljs-variable">$host</span>"</span> || abort <span class="hljs-string">"host not configured"</span>
 
   <span class="hljs-built_in">local</span> url=<span class="hljs-variable">$host</span></pre></div></div>
             
@@ -735,7 +736,9 @@ By default, you connect with the same name as your local user.</li>
             </div>
             
             <div class="content"><div class='highlight'><pre><span class="hljs-function"><span class="hljs-title">run</span></span>() {
-  <span class="hljs-built_in">local</span> shell=<span class="hljs-string">"`build_ssh_command`"</span>
+  <span class="hljs-built_in">local</span> shell
+  shell=<span class="hljs-string">"<span class="hljs-variable">$(build_ssh_command 2&gt;&amp;1)</span>"</span>
+  <span class="hljs-built_in">test</span> $? -eq 0 || abort <span class="hljs-string">"<span class="hljs-variable">$shell</span>"</span>
   log_command <span class="hljs-string">"<span class="hljs-variable">$@</span>"</span>
   <span class="hljs-variable">$shell</span> <span class="hljs-variable">$@</span>
 }</pre></div></div>
@@ -1068,8 +1071,13 @@ Note that this directory <strong>must already exist</strong> on the host and be 
             <div class="content"><div class='highlight'><pre><span class="hljs-function"><span class="hljs-title">setup</span></span>() {
   require_env
 
+  <span class="hljs-built_in">local</span> host=<span class="hljs-string">"<span class="hljs-variable">$(get_last_config_key_value host)</span>"</span>
   <span class="hljs-built_in">local</span> path=<span class="hljs-string">"<span class="hljs-variable">$(get_last_config_key_value path)</span>"</span>
-  <span class="hljs-built_in">local</span> repo=<span class="hljs-string">"<span class="hljs-variable">$(get_last_config_key_value repo)</span>"</span></pre></div></div>
+  <span class="hljs-built_in">local</span> repo=<span class="hljs-string">"<span class="hljs-variable">$(get_last_config_key_value repo)</span>"</span>
+
+  <span class="hljs-built_in">test</span> -n <span class="hljs-string">"<span class="hljs-variable">$host</span>"</span> || abort <span class="hljs-string">"host not configured"</span>
+  <span class="hljs-built_in">test</span> -n <span class="hljs-string">"<span class="hljs-variable">$path</span>"</span> || abort <span class="hljs-string">"path not configured"</span>
+  <span class="hljs-built_in">test</span> -n <span class="hljs-string">"<span class="hljs-variable">$repo</span>"</span> || abort <span class="hljs-string">"repo not configured"</span></pre></div></div>
             
         </li>
         
@@ -1104,8 +1112,7 @@ Note that this directory <strong>must already exist</strong> on the host and be 
             </div>
             
             <div class="content"><div class='highlight'><pre>  <span class="hljs-built_in">log</span> running setup
-  run <span class="hljs-string">"{ test -d <span class="hljs-variable">$path</span> || exit 1; } \
-       &amp;&amp; mkdir -p <span class="hljs-variable">$path</span>/releases <span class="hljs-variable">$path</span>/tmp"</span> \
+  run <span class="hljs-string">"{ test -d <span class="hljs-variable">$path</span> || exit 1; } &amp;&amp; mkdir -p <span class="hljs-variable">$path</span>/releases <span class="hljs-variable">$path</span>/tmp"</span> \
     || abort <span class="hljs-string">"failed to set up directories; make sure <span class="hljs-variable">$path</span> exists and is writable"</span></pre></div></div>
             
         </li>
@@ -1124,8 +1131,7 @@ Note that this directory <strong>must already exist</strong> on the host and be 
             </div>
             
             <div class="content"><div class='highlight'><pre>  <span class="hljs-built_in">log</span> cloning repo
-  run <span class="hljs-string">"test -d <span class="hljs-variable">$path</span>/repo \
-       || { git clone --bare <span class="hljs-variable">$repo</span> <span class="hljs-variable">$path</span>/repo || exit 1; }"</span> \
+  run <span class="hljs-string">"test -d <span class="hljs-variable">$path</span>/repo || { git clone --bare <span class="hljs-variable">$repo</span> <span class="hljs-variable">$path</span>/repo || exit 1; }"</span> \
     || abort <span class="hljs-string">"failed to clone repo"</span></pre></div></div>
             
         </li>
@@ -1953,8 +1959,9 @@ If the installation path does not already exist, its parent must be a writable d
             </div>
             
             <div class="content"><div class='highlight'><pre><span class="hljs-function"><span class="hljs-title">abort</span></span>() {
+  <span class="hljs-built_in">local</span> message=<span class="hljs-string">"<span class="hljs-variable">$(echo $@|sed 's/^ *//')</span>"</span>
   <span class="hljs-built_in">echo</span>
-  log_error <span class="hljs-string">"  <span class="hljs-variable">$@</span>"</span>
+  log_error <span class="hljs-string">"  <span class="hljs-variable">$message</span>"</span>
   <span class="hljs-built_in">echo</span>
   <span class="hljs-built_in">exit</span> 1
 }

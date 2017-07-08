@@ -4,6 +4,8 @@
 
 **_A (magic) shell script to deploy Git repositories_**
 
+[![Build Status](https://travis-ci.org/AlphaHydrae/deploy.svg?branch=master)](https://travis-ci.org/AlphaHydrae/deploy)
+
 Read the [annotated source](https://alphahydrae.github.io/deploy/)
 
 Repository: [AlphaHydrae/deploy](https://github.com/AlphaHydrae/deploy) ([MIT Licensed](https://opensource.org/licenses/MIT))
