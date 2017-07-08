@@ -2,7 +2,6 @@
   "name": "bash-deploy",
   "version": "2.0.3",
   "description": "Deployment shell script",
-  "private": true,
   "bin": {
     "deploy": "./bin/deploy"
   },
