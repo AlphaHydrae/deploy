@@ -424,7 +424,7 @@ build_ssh_command() {
   # * **`host <address>`** (or the `$DEPLOY_HOST` variable) is mandatory for all environments.
   #   It indicates which host or IP address to connect to.
   local host=$(get_last_config_key_value host)
-  test -n "$host" || abort "no host config found in environment $DEPLOY_ENV"
+  test -n "$host" || abort "host not configured"
 
   local url=$host
 
@@ -627,19 +627,20 @@ setup() {
   local path="$(get_last_config_key_value path)"
   local repo="$(get_last_config_key_value repo)"
 
+  test -n "$path" || abort "path not configured"
+  test -n "$repo" || abort "repo not configured"
+
   # * Run user-defined `pre-setup` hooks (if any).
   run_hooks pre-setup "$path"
 
   # * Create the `releases` and a `tmp` directories if they don't exist already.
   log running setup
-  run "{ test -d $path || exit 1; } \
-       && mkdir -p $path/releases $path/tmp" \
+  run "{ test -d $path || exit 1; } && mkdir -p $path/releases $path/tmp" \
     || abort "failed to set up directories; make sure $path exists and is writable"
 
   # * Clone the repository into the `repo` directory if it isn't already there.
   log cloning repo
-  run "test -d $path/repo \
-       || { git clone --bare $repo $path/repo || exit 1; }" \
+  run "test -d $path/repo || { git clone --bare $repo $path/repo || exit 1; }" \
     || abort "failed to clone repo"
 
   # * Run user-defined `post-setup` hooks (if any).
