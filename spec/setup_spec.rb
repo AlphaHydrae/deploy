@@ -27,9 +27,10 @@ path #{config_file_path}
 rev #{config_file_rev}
     CONFIG
 
-    result = deploy :main, :setup
+    exec = deploy :main, :setup
 
-    expect(result.status).to be_success
+    expect(exec).to exit_with(0)
+    expect(exec).to print(&expected_setup_output)
     expect_setup deploy_dir, source_repo: deploy_repo
   end
 
@@ -41,20 +42,19 @@ rev #{config_file_rev}
       path #{config_file_path}
     CONFIG
 
-    result = deploy :main, :setup
+    exec = deploy :main, :setup
 
-    expect(result.status).to be_success
+    expect(exec).to exit_with(0)
+    expect(exec).to print(&expected_setup_output)
     expect_setup deploy_dir, source_repo: deploy_repo
   end
 
   describe "with a configuration error" do
     it "should not work without configuration" do
-      result = deploy :main, :setup
+      exec = deploy :main, :setup
 
-      expect(result.status.exitstatus).to be(1)
-      expect(result.stdout).to print_nothing
-      expect(result.stderr).to print_message('[main] config section not defined')
-
+      expect(exec).to exit_with(1)
+      expect(exec).to print_error('[main] config section not defined')
       expect(deploy_dir).to be_directory.umask(:process).empty
     end
 
@@ -65,12 +65,10 @@ rev #{config_file_rev}
         path #{config_file_path}
       CONFIG
 
-      result = deploy :main, :setup
+      exec = deploy :main, :setup
 
-      expect(result.status.exitstatus).to be(1)
-      expect(result.stdout).to print_nothing
-      expect(result.stderr).to print_message('host not configured')
-
+      expect(exec).to exit_with(1)
+      expect(exec).to print_error('host not configured')
       expect(deploy_dir).to be_directory.umask(:process).empty
     end
 
@@ -81,12 +79,10 @@ rev #{config_file_rev}
         path #{config_file_path}
       CONFIG
 
-      result = deploy :main, :setup
+      exec = deploy :main, :setup
 
-      expect(result.status.exitstatus).to be(1)
-      expect(result.stdout).to print_nothing
-      expect(result.stderr).to print_message('repo not configured')
-
+      expect(exec).to exit_with(1)
+      expect(exec).to print_error('repo not configured')
       expect(deploy_dir).to be_directory.umask(:process).empty
     end
 
@@ -97,13 +93,27 @@ rev #{config_file_rev}
         repo #{config_file_repo}
       CONFIG
 
-      result = deploy :main, :setup
+      exec = deploy :main, :setup
 
-      expect(result.status.exitstatus).to be(1)
-      expect(result.stdout).to print_nothing
-      expect(result.stderr).to print_message('path not configured')
-
+      expect(exec).to exit_with(1)
+      expect(exec).to print_error('path not configured')
       expect(deploy_dir).to be_directory.umask(:process).empty
+    end
+  end
+
+  def expected_setup_output
+    server_tmp = @server_tmp
+    Proc.new do
+      hook 'pre-setup'
+      message 'nothing to do'
+      step 'running setup'
+      command "{ test -d #{server_tmp}/deploy || exit 1; } && mkdir -p #{server_tmp}/deploy/releases #{server_tmp}/deploy/tmp"
+      step 'cloning repo'
+      command "test -d #{server_tmp}/deploy/repo || { git clone --bare file://#{server_tmp}/repo #{server_tmp}/deploy/repo || exit 1; }"
+      stderr "Cloning into bare repository '#{server_tmp}/deploy/repo'..."
+      hook 'post-setup'
+      message 'nothing to do'
+      step 'setup complete'
     end
   end
 

@@ -16,6 +16,6 @@ module CliSupport
       stdout, stderr, status = Open3.capture3 command
     end
 
-    OpenStruct.new stdout: stdout, stderr: stderr, status: status
+    OpenStruct.new command: command, stdout: stdout, stderr: stderr, status: status
   end
 end

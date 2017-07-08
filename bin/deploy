@@ -626,9 +626,11 @@ require_config() {
 setup() {
   require_env
 
+  local host="$(get_last_config_key_value host)"
   local path="$(get_last_config_key_value path)"
   local repo="$(get_last_config_key_value repo)"
 
+  test -n "$host" || abort "host not configured"
   test -n "$path" || abort "path not configured"
   test -n "$repo" || abort "repo not configured"
 
