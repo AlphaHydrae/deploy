@@ -454,7 +454,9 @@ build_ssh_command() {
 
 # All commands executed on the host through SSH will be logged to the console.
 run() {
-  local shell="`build_ssh_command`"
+  local shell
+  shell="$(build_ssh_command 2>&1)"
+  test $? -eq 0 || abort "$shell"
   log_command "$@"
   $shell $@
 }
@@ -1003,8 +1005,9 @@ log_error() {
 
 # If **deploy** encounters an unrecoverable error, it will log an error and exit with status 1.
 abort() {
+  local message="$(echo $@|sed 's/^ *//')"
   echo
-  log_error "  $@"
+  log_error "  $message"
   echo
   exit 1
 }
