@@ -1,0 +1,9 @@
+.*
+*.js
+Gemfile
+Gemfile.lock
+docs
+res
+spec
+TODO.md
+Vagrantfile
