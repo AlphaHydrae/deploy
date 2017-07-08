@@ -5,7 +5,7 @@ module DeploySupport
   def deploy_config! config, name: 'deploy.conf', dir: @deployer_tmp
     raise "A directory is required (@deployer_tmp or explicit)" unless dir
     config_file = File.join @deployer_tmp, name
-    File.open(config_file, 'w'){ |f| f.write config.to_s }
+    File.open(config_file, 'w'){ |f| f.write config.to_s.split(/\n/).collect{ |line| line.sub(/^ */, '') }.join("\n") }
     config_file
   end
 
