@@ -3,29 +3,40 @@ module FileSystemSupport
     File.join *args.collect(&:to_s)
   end
 
-  def umask
-    @@umask ||= `ssh $USER@localhost umask`.strip.to_i(8)
+  def process_umask
+    @@process_umask ||= File.umask
   end
 
-  def umask_digit i
-    umask.to_s(8).rjust(3, '0')[i, 1].to_i
+  def ssh_umask
+    @@ssh_umask ||= `ssh $USER@localhost umask`.strip.to_i(8)
   end
 
-  def default_permissions i, type
-    raise "Unsupported umask position #{i}" unless i >= 0 && i <= 2
+  def umask_digit umask:, position:
+    raise "Umask must be an integer" unless umask.kind_of? Integer
+    raise "Unsupported umask position #{position}" unless position >= 0 && position <= 2
+    umask.to_s(8).rjust(3, '0')[position, 1].to_i
+  end
+
+  def default_permissions type:, umask:, position:
+    raise "Unsupported default mode type #{type.inspect}" unless %i(file directory).include? type
+    default_umask = send "#{umask}_umask"
 
     case type
     when :directory
-      7 - umask_digit(i)
+      7 - umask_digit(umask: default_umask, position: position)
     when :file
-      6 - umask_digit(i)
+      6 - umask_digit(umask: default_umask, position: position)
     else
       raise "Unsupported file type #{type.inspect}"
     end
   end
 
-  def default_mode type
-    [ default_permissions(0, type), default_permissions(1, type), default_permissions(2, type) ].join('')
+  def default_mode type, umask: :ssh
+    [
+      default_permissions(type: type, umask: umask, position: 0),
+      default_permissions(type: type, umask: umask, position: 1),
+      default_permissions(type: type, umask: umask, position: 2)
+    ].join('')
   end
 
   def normalize_mode mode

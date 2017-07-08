@@ -8,13 +8,15 @@ class FileMatch
 
   attr_reader :actual_type, :actual_mode, :actual_owner, :actual_group, :actual_contents,
               :type_matches, :mode_matches, :owner_matches, :group_matches, :contents_match
-  attr_accessor :expected_type, :expected_mode, :expected_owner, :expected_group, :expected_contents
+  attr_accessor :expected_type, :expected_mode, :expected_owner, :expected_group, :expected_contents,
+                :umask
 
-  def initialize path, type: nil, mode: nil, owner: nil, group: nil, contents: nil
+  def initialize path, type: nil, mode: nil, owner: nil, group: nil, contents: nil, umask: nil
     @path = path
+    @umask = umask
 
     @expected_type = type.to_sym
-    @expected_mode = normalize_mode(mode.kind_of?(Symbol) ? default_mode(mode) : mode)
+    @expected_mode = normalize_mode(mode.kind_of?(Symbol) ? default_mode(mode, umask: umask) : mode)
     @expected_owner = (owner || server_user).to_sym
     @expected_group = (group || server_user).to_sym
     @expected_contents = contents ? contents.flatten : nil
@@ -37,7 +39,7 @@ class FileMatch
       instance_variable_set("@#{attr}_matches", instance_variable_get("@actual_#{attr}") == instance_variable_get("@expected_#{attr}"))
     end
 
-    @contents_match = !@expected_contents || @actual_contents == @expected_contents
+    @contents_match = !@expected_contents || @actual_contents.sort == @expected_contents.sort
   end
 
   def matches?
@@ -60,9 +62,9 @@ class FileMatch
 end
 
 %i(file directory).each do |type|
-  RSpec::Matchers.define "be_#{type}".to_sym do |mode: type|
+  RSpec::Matchers.define "be_#{type}".to_sym do |mode|
     match do |actual|
-      @match = FileMatch.new actual, type: type, mode: mode, owner: @owner, group: @group, contents: @contents
+      @match = FileMatch.new actual, type: type, mode: mode || type, owner: @owner, group: @group, contents: @contents, umask: @umask || :ssh
       @match.matches?
     end
 
@@ -80,6 +82,10 @@ end
 
     chain :empty do
       @contents = []
+    end
+
+    chain :umask do |umask|
+      @umask = umask
     end
 
     failure_message do |actual|

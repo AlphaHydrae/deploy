@@ -51,7 +51,7 @@ path #{config_file_path}
     result = deploy :main, :setup
 
     expect(result.status.exitstatus).to be(1)
-    expect(deploy_dir).to be_directory(0755).empty
+    expect(deploy_dir).to be_directory.umask(:process).empty
   end
 
   it "should not work with no host configured" do
@@ -64,7 +64,7 @@ path #{config_file_path}
     result = deploy :main, :setup
 
     expect(result.status.exitstatus).to be(1)
-    expect(deploy_dir).to be_directory(0755).empty
+    expect(deploy_dir).to be_directory.umask(:process).empty
   end
 
   it "should not work with no repo configured" do
@@ -77,7 +77,7 @@ path #{config_file_path}
     result = deploy :main, :setup
 
     expect(result.status.exitstatus).to be(1)
-    expect(deploy_dir).to be_directory(0755).contents('releases', 'tmp')
+    expect(deploy_dir).to be_directory.umask(:process).contents('releases', 'tmp')
     expect(join(deploy_dir, 'releases')).to be_directory.empty
     expect(join(deploy_dir, 'tmp')).to be_directory.empty
   end
@@ -92,10 +92,11 @@ repo #{config_file_repo}
     result = deploy :main, :setup
 
     expect(result.status.exitstatus).to be(1)
-    expect(deploy_dir).to be_directory(0755).empty
+    expect(deploy_dir).to be_directory.umask(:process).empty
   end
 
   def expect_setup path, source_repo:
+    expect(path).to be_directory.umask(:process).contents('releases', 'repo', 'tmp')
     expect(join(path, 'releases')).to be_directory.empty
     expect(join(path, 'tmp')).to be_directory.empty
     expect_git_repo path: join(path, 'repo'), source_repo: source_repo
