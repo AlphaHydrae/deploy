@@ -10,12 +10,12 @@
     "docs:clean": "rimraf docs",
     "docs:serve": "node serve-docs.js",
     "docs:watch": "onchange \"bin/deploy\" \"res/docs.*\" -- npm run docs:gen",
-    "postversion": "node update-version.js",
     "readme": "npm run readme:build && npm run readme:doctoc",
     "readme:build": "node build-readme.js",
     "readme:doctoc": "doctoc --github --notitle --maxlevel 3 README.md",
     "readme:watch": "onchange \"bin/deploy\" \"build-readme.js\" \"res/HEADER.md\" -- npm run readme",
-    "start": "concurrently \"npm run docs\" \"npm run readme\" && concurrently \"npm run docs:serve\" \"npm run docs:watch\" \"npm run readme:watch\""
+    "start": "concurrently \"npm run docs\" \"npm run readme\" && concurrently \"npm run docs:serve\" \"npm run docs:watch\" \"npm run readme:watch\"",
+    "version": "node update-version.js"
   },
   "repository": {
     "type": "git",

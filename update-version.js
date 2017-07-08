@@ -12,6 +12,5 @@ if (!script.match(versionRegexp)) {
 script = script.replace(versionRegexp, `VERSION=${version}`);
 fs.writeFileSync('bin/deploy', script, { encoding: 'utf8' });
 
-console.log();
 console.log(chalk.green(`Version updated to ${version} in bin/deploy`));
 console.log();
