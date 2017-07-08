@@ -4,7 +4,6 @@
   "description": "Deployment shell script",
   "private": true,
   "scripts": {
-    "bump": "node bump.js",
     "docs": "npm run docs:clean && npm run docs:gen",
     "docs:gen": "docco -o tmp/docs -e .sh bin/deploy && node process-docs.js && sleep 0.5 && touch docs/index.html",
     "docs:clean": "rimraf docs",
@@ -15,7 +14,7 @@
     "readme:doctoc": "doctoc --github --notitle --maxlevel 3 README.md",
     "readme:watch": "onchange \"bin/deploy\" \"build-readme.js\" \"res/HEADER.md\" -- npm run readme",
     "start": "concurrently \"npm run docs\" \"npm run readme\" && concurrently \"npm run docs:serve\" \"npm run docs:watch\" \"npm run readme:watch\"",
-    "version": "node update-version.js"
+    "version": "node update-version.js && git add bin/deploy"
   },
   "repository": {
     "type": "git",
