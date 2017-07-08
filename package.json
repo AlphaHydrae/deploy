@@ -1,8 +1,11 @@
 {
-  "name": "deploy",
+  "name": "bash-deploy",
   "version": "2.0.3",
   "description": "Deployment shell script",
   "private": true,
+  "bin": {
+    "deploy": "./bin/deploy"
+  },
   "scripts": {
     "docs": "npm run docs:clean && npm run docs:gen",
     "docs:gen": "docco -o tmp/docs -e .sh bin/deploy && node process-docs.js && sleep 0.5 && touch docs/index.html",
