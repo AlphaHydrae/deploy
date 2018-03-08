@@ -5,6 +5,11 @@
   "bin": {
     "deploy": "./bin/deploy"
   },
+  "files": {
+    "bin",
+    "LICENSE.txt",
+    "README.md"
+  },
   "scripts": {
     "docs": "npm run docs:clean && npm run docs:gen",
     "docs:gen": "docco -o tmp/docs -e .sh bin/deploy && node process-docs.js && sleep 0.5 && touch docs/index.html",
