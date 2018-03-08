@@ -202,7 +202,7 @@ get_config_key_values_in_env() {
   local env="$2"
 
   get_config_section $env \
-    | grep "^$key\s\s*[^\s]" \
+    | grep "^$key[ \t][ \t]*[^ \t]*" \
     | cut -d ' ' -f 2-999 \
     | sed "s/^ *//" \
     | sed "s/ *$//"
