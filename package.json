@@ -1,6 +1,6 @@
 {
   "name": "bash-deploy",
-  "version": "2.0.4",
+  "version": "2.0.5",
   "description": "Deployment shell script",
   "bin": {
     "deploy": "./bin/deploy"
