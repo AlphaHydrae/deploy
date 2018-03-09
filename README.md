@@ -5,7 +5,7 @@
 **_A (magic) shell script to deploy Git repositories_**
 
 [![Build Status](https://travis-ci.org/AlphaHydrae/deploy.svg?branch=master)](https://travis-ci.org/AlphaHydrae/deploy)
-[![npm version](https://img.shields.io/badge/version-2.0.3-blue.svg)](https://badge.fury.io/js/bash-deploy)
+[![npm version](https://img.shields.io/badge/version-2.0.5-blue.svg)](https://badge.fury.io/js/bash-deploy)
 [![license](https://img.shields.io/npm/l/express.svg)](https://opensource.org/licenses/MIT)
 
 Read the [annotated source](https://alphahydrae.github.io/deploy/)
@@ -40,6 +40,7 @@ Shamelessly inspired by: [visionmedia/deploy](https://github.com/visionmedia/dep
   - [`<env> exec <cmd>`](#env-exec-cmd)
   - [`<env> list`](#env-list)
   - [`update [--prefix dir] [--path path] [rev]`](#update---prefix-dir---path-path-rev)
+- [Cleaning up old releases](#cleaning-up-old-releases)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
@@ -55,6 +56,7 @@ Here's an example for a Node.js project:
     host  my.server.com
     user  deploy
     path  /var/www/app
+
     # describe how to deploy your app
     env          NODE_ENV=production
     deploy       npm install --production
@@ -93,33 +95,36 @@ npm install -g bash-deploy
 With curl:
 
 ```sh
-FROM=https://raw.githubusercontent.com \
-  && curl -sSLo /usr/local/bin/deploy \
+PREFIX=/usr/local/bin \
+  FROM=https://raw.githubusercontent.com \
+  && curl -sSLo $PREFIX/deploy \
   $FROM/AlphaHydrae/deploy/master/bin/deploy \
-  && chmod +x /usr/local/bin/deploy
+  && chmod +x $PREFIX/deploy
 ```
 
 With wget:
 
 ```sh
-FROM=https://raw.githubusercontent.com \
-  && wget -qO /usr/local/bin/deploy \
+PREFIX=/usr/local/bin \
+  FROM=https://raw.githubusercontent.com \
+  && wget -qO $PREFIX/deploy \
   $FROM/AlphaHydrae/deploy/master/bin/deploy \
-  && chmod +x /usr/local/bin/deploy
+  && chmod +x $PREFIX/deploy
 ```
 
 Or [download it](https://raw.githubusercontent.com/AlphaHydrae/deploy/master/bin/deploy) yourself.
 
 ## Requirements
 
-**deploy** is a one-file bash script which requires the following commands: `cat`, `cut`, `date`, `git`, `grep`, `ls`, `mkdir`, `sed`, `ssh`, `tail` and `tar`.
+**deploy** is a one-file bash script which requires the following commands: `cat`, `cut`, `date`, `git`, `grep`, `ls`, `mkdir`, `sed`, `ssh`, `tail`, `tar` and `wc`.
 Most bash shells have all of those out of the box except perhaps [Git](https://git-scm.com).
 
 It also optionally requires the `chmod`, `cp` and `mktemp` commands to update itself.
 
 ## Configuration file
 
-**deploy** reads its main configuration from a `deploy.conf` file in the current directory (this can be customized with [environment variables](#environment-variables) and [command line options](#general-options)).
+**deploy** reads its main configuration from a `deploy.conf` file in the current directory.
+It can also be customized with [environment variables](#environment-variables) and [command line options](#general-options).
 
 The configuration file is basically a series of sections containing key/value pairs:
 
@@ -145,7 +150,7 @@ in this example the *staging* and *production* environments.
 Lines beginning with `#` are comments and are ignored.
 
 Other lines are key/value pairs.
-A key is a sequence of characters containing no whitespace, followed by at least one space.
+A key is a sequence of characters containing no whitespace, followed by at least one tab or space.
 
 For example, in the line `deploy npm run build`, the key is `deploy` and its value is `npm run build`.
 
@@ -178,7 +183,7 @@ To avoid repetition, an environment can **inherit** from one or multiple other e
 
     [production]
     inherits common
-    inherits shared
+    inherits secure
     user root
     deploy just-do-it
 
@@ -255,6 +260,14 @@ See the [`setup`](#setup) and [`rev`](#deploy) commands to learn exactly when an
 
 * **`repo <url>`** (or the `$DEPLOY_REPO` variable) defines the Git URL from which your repository will be cloned at setup time.
 * **`path <dir>`** (or the `$DEPLOY_PATH` variable) defines the directory into which your project will be deployed on the host.
+
+* <a name="keep"></a>
+  **`keep <n>`** (or the `$DEPLOY_KEEP` variable) defines how many releases to keep after deploying.
+  Older releases will be deleted. It must be either `all` (the default), or an integer greater than zero.
+
+  If it's a number, it indicates the number of releases that should be kept **after successful deployment**.
+  For example, with `keep` set to 3, if there are 5 old releases deployed before running the scrip, 3 will be deleted
+  (so that 2 old releases and the new one being deployed, 3 in total, remain).
 
 ### SSH connection
 
@@ -388,23 +401,29 @@ You can override this behavior with the `-f|--force` option (or the `$DEPLOY_FOR
 
 This is what **deploy** will do during deployment:
 
-* Run user-defined pre-deploy hooks (if any) in the directory of the **previous release**.
+* If a [`keep` option](#keep) is configured, all previously deployed releases are listed,
+  with those to be deleted in red, and those to be kept and the current release in green, and
+  confirmation will be asked.
+
+* User-defined pre-deploy hooks (if any) are run **in the directory of the previous release**.
   You may define **pre-deploy hooks** to perform any task you might want to do before the actual deployment
   (e.g. you might want to stop the currently running version or put it into maintenance mode).
 
-* Fetch the latest changes from the repository.
+* The latest changes are fetched from the repository.
 
-* Create the new release directory and extract the source at the specified revision into it.
+* The new release directory is created and the source is extracted at the specified revision into it.
 
-* Run user-defined deploy hooks (if any) in the new release directory.
+* User-defined deploy hooks (if any) are run in the new release directory.
   You should define **deploy hooks** to build your application or install its dependencies at this stage.
 
-* Make a symlink of the new release directory as `current` in the deployment directory.
+* A symlink of the new release directory is created as `current` in the deployment directory.
 
-* Run user-defined post-deploy hooks (if any) in the current release directory
+* User-defined post-deploy hooks (if any) are run in the current release directory
   (which is now the same as the new release directory that was just created).
 
   You should define **post-deploy hooks** to execute or start your application at this stage.
+
+* Old releases are deleted according to the `keep` option (if configured and any were found).
 
 ### `[env] config [key]`
 
@@ -516,3 +535,32 @@ If the installation path does not already exist, its parent must be a writable d
 To perform the update, **deploy** will download its Git repository into a temporary directory that will be cleaned up when the update is done (or fails).
 
 The correct revision of the script is then copied to the installation path and made executable.
+
+## Cleaning up old releases
+
+**deploy** creates a new release directory for each deployment.
+By default, it keeps these directories forever, leaving you responsible for cleaning them up.
+
+If given a [`keep` option](#keep), it can do it for you automatically after each deployment.
+
+**deploy** will list the contents of the `releases` directory on the server.
+
+If no old release is found, deployment will proceed normally.
+
+If the number of old releases is equal to or greater than the `keep` number,
+**deploy** will print the list of releases that will be deleted in red.
+
+Old releases that will be kept will be shown in green.
+
+The current release being deployed is also indicated in green
+(as it counts in the `keep` number).
+
+If there are any releases to delete, **deploy** will ask for confirmation.
+
+Responding "no" interrupts the deployment and prints a help message explaining
+how to configure the `keep` number.
+
+The actual cleanup of old releases is always performed **after successful deployment**.
+
+A single `rm` command is executed on the server through SSH,
+deleting all appropriate old release directories in one go.

@@ -1,5 +1,8 @@
 # TODO
 
+* ask for cleanup confirmation
+* add cleanup command to delete old releases manually
+* check required commands on server (at setup)
 * make rev the default command
 * do not run pre-deploy hooks for first deployment
 * add command line arguments for ssh options and others

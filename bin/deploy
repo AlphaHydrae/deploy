@@ -18,7 +18,9 @@ VERSION=2.0.5
 COLORS=
 COLOR_BOLD=1
 COLOR_RED=31
+COLOR_GREEN=32
 COLOR_YELLOW=33
+COLOR_MAGENTA=35
 
 DEFAULT_CONFIG=./deploy.conf
 DEFAULT_UPDATE_REPO=git://github.com/AlphaHydrae/deploy.git
@@ -35,6 +37,7 @@ DEFAULT_UPDATE_REPO=git://github.com/AlphaHydrae/deploy.git
 #     host  my.server.com
 #     user  deploy
 #     path  /var/www/app
+#
 #     # describe how to deploy your app
 #     env          NODE_ENV=production
 #     deploy       npm install --production
@@ -110,31 +113,33 @@ EOF
 # With curl:
 #
 # ```sh
-# FROM=https://raw.githubusercontent.com \
-#   && curl -sSLo /usr/local/bin/deploy \
+# PREFIX=/usr/local/bin \
+#   FROM=https://raw.githubusercontent.com \
+#   && curl -sSLo $PREFIX/deploy \
 #   $FROM/AlphaHydrae/deploy/master/bin/deploy \
-#   && chmod +x /usr/local/bin/deploy
+#   && chmod +x $PREFIX/deploy
 # ```
 #
 # With wget:
 #
 # ```sh
-# FROM=https://raw.githubusercontent.com \
-#   && wget -qO /usr/local/bin/deploy \
+# PREFIX=/usr/local/bin \
+#   FROM=https://raw.githubusercontent.com \
+#   && wget -qO $PREFIX/deploy \
 #   $FROM/AlphaHydrae/deploy/master/bin/deploy \
-#   && chmod +x /usr/local/bin/deploy
+#   && chmod +x $PREFIX/deploy
 # ```
 #
 # Or [download it](https://raw.githubusercontent.com/AlphaHydrae/deploy/master/bin/deploy) yourself.
 
 # ## Requirements
 #
-# **deploy** is a one-file bash script which requires the following commands: `cat`, `cut`, `date`, `git`, `grep`, `ls`, `mkdir`, `sed`, `ssh`, `tail` and `tar`.
+# **deploy** is a one-file bash script which requires the following commands: `cat`, `cut`, `date`, `git`, `grep`, `ls`, `mkdir`, `sed`, `ssh`, `tail`, `tar` and `wc`.
 # Most bash shells have all of those out of the box except perhaps [Git](https://git-scm.com).
 #
 # It also optionally requires the `chmod`, `cp` and `mktemp` commands to update itself.
 check_requirements() {
-  for com in cat cut date git grep ls mkdir sed ssh tail tar; do
+  for com in cat cut date git grep ls mkdir sed ssh tail tar wc; do
     require_command $com
   done
 }
@@ -149,7 +154,8 @@ command_exists() {
 
 # ## Configuration file
 #
-# **deploy** reads its main configuration from a `deploy.conf` file in the current directory (this can be customized with [environment variables](#environment-variables) and [command line options](#general-options)).
+# **deploy** reads its main configuration from a `deploy.conf` file in the current directory.
+# It can also be customized with [environment variables](#environment-variables) and [command line options](#general-options).
 config_file_exists() {
   test -f "$DEPLOY_CONFIG" && test -r "$DEPLOY_CONFIG"
 }
@@ -178,7 +184,7 @@ config_file_exists() {
 # Lines beginning with `#` are comments and are ignored.
 #
 # Other lines are key/value pairs.
-# A key is a sequence of characters containing no whitespace, followed by at least one space.
+# A key is a sequence of characters containing no whitespace, followed by at least one tab or space.
 #
 # For example, in the line `deploy npm run build`, the key is `deploy` and its value is `npm run build`.
 config_section_exists() {
@@ -264,7 +270,7 @@ get_all_config_key_values() {
 #
 #     [production]
 #     inherits common
-#     inherits shared
+#     inherits secure
 #     user root
 #     deploy just-do-it
 #
@@ -426,6 +432,17 @@ run_hooks() {
 # * **`repo <url>`** (or the `$DEPLOY_REPO` variable) defines the Git URL from which your repository will be cloned at setup time.
 # * **`path <dir>`** (or the `$DEPLOY_PATH` variable) defines the directory into which your project will be deployed on the host.
 
+# * <a name="keep"></a>
+#   **`keep <n>`** (or the `$DEPLOY_KEEP` variable) defines how many releases to keep after deploying.
+#   Older releases will be deleted. It must be either `all` (the default), or an integer greater than zero.
+#
+#   If it's a number, it indicates the number of releases that should be kept **after successful deployment**.
+#   For example, with `keep` set to 3, if there are 5 old releases deployed before running the scrip, 3 will be deleted
+#   (so that 2 old releases and the new one being deployed, 3 in total, remain).
+validate_keep() {
+  test -z "$DEPLOY_KEEP" || [[ "$DEPLOY_KEEP" == "all" ]] || [[ "$DEPLOY_KEEP" =~ ^[1-9][0-9]*$ ]] || abort "keep must be \"all\" or a positive integer greater than zero"
+}
+
 # ### SSH connection
 #
 # Various SSH options can be specified through the configuration file or environment variables:
@@ -468,6 +485,13 @@ run() {
   shell="$(build_ssh_command 2>&1)"
   test $? -eq 0 || abort "$shell"
   log_command "$@"
+  $shell $@
+}
+
+run_silent() {
+  local shell
+  shell="$(build_ssh_command 2>&1)"
+  test $? -eq 0 || abort "$shell"
   $shell $@
 }
 
@@ -680,18 +704,18 @@ deploy_rev() {
   local release_dir="$path/releases/$release"
   local tmp_dir="$path/tmp"
 
+  DEPLOY_KEEP=$(get_last_config_key_value keep)
+
   # You must provide a Git revision, i.e. a **commit, branch or tag** to deploy,
   # either as the `[rev]` argument, with the `rev` config key or the `$DEPLOY_REV` variable.
   #
   # If your Git repository is **private**, make sure that the deployment user has access to it.
-  #
-  # Note that **deploy** will refuse to deploy unless all your local changes are committed and pushed.
-  # You can override this behavior with the `-f|--force` option (or the `$DEPLOY_FORCE` variable).
   local rev=
   while test $# -ne 0; do
     arg=$1; shift
     case $arg in
       -f|--force) DEPLOY_FORCE=1 ;;
+      -k|--keep) DEPLOY_KEEP="$1"; shift ;;
       *)
         if test -z "$rev"; then
           rev="$arg"
@@ -702,6 +726,10 @@ deploy_rev() {
     esac
   done
 
+  validate_keep
+
+  # Note that **deploy** will refuse to deploy unless all your local changes are committed and pushed.
+  # You can override this behavior with the `-f|--force` option (or the `$DEPLOY_FORCE` variable).
   require_no_local_changes
 
   test -z "$rev" && rev=$(get_last_config_key_value rev)
@@ -711,20 +739,26 @@ deploy_rev() {
   log deploying
   echo "    revision: $rev"
   echo "    release: $release"
+  echo "    keep: ${DEPLOY_KEEP:-all}"
 
-  # * Run user-defined pre-deploy hooks (if any) in the directory of the **previous release**.
+  # * If a [`keep` option](#keep) is configured, all previously deployed releases are listed,
+  #   with those to be deleted in red, and those to be kept and the current release in green, and
+  #   confirmation will be asked.
+  prepare_to_delete_old_releases
+
+  # * User-defined pre-deploy hooks (if any) are run **in the directory of the previous release**.
   #   You may define **pre-deploy hooks** to perform any task you might want to do before the actual deployment
   #   (e.g. you might want to stop the currently running version or put it into maintenance mode).
   run_hooks pre-deploy "$current_dir"
 
-  # * Fetch the latest changes from the repository.
+  # * The latest changes are fetched from the repository.
   log fetching updates
   run "cd $path/repo \
        && git fetch origin '+refs/heads/*:refs/heads/*' \
        && git rev-list -n 1 $rev" \
     || abort "could not fetch changes"
 
-  # * Create the new release directory and extract the source at the specified revision into it.
+  # * The new release directory is created and the source is extracted at the specified revision into it.
   log "extracting source at $rev"
   run "cd $path/repo \
        && mkdir -p $release_dir \
@@ -733,22 +767,27 @@ deploy_rev() {
        && rm -f $tmp_dir/release-*.tar" \
     || abort "could not extract source from repository"
 
-  # * Run user-defined deploy hooks (if any) in the new release directory.
+  # * User-defined deploy hooks (if any) are run in the new release directory.
   #   You should define **deploy hooks** to build your application or install its dependencies at this stage.
   run_hooks deploy $release_dir
 
-  # * Make a symlink of the new release directory as `current` in the deployment directory.
+  # * A symlink of the new release directory is created as `current` in the deployment directory.
   log linking current
   run "ln -fns $release_dir $current_dir" \
     || abort "could not create current symlink"
 
-  # * Run user-defined post-deploy hooks (if any) in the current release directory
+  # * User-defined post-deploy hooks (if any) are run in the current release directory
   #   (which is now the same as the new release directory that was just created).
   #
   #   You should define **post-deploy hooks** to execute or start your application at this stage.
   run_hooks post-deploy $current_dir
 
-  log successfully deployed
+  # * Old releases are deleted according to the `keep` option (if configured and any were found).
+  test -n "$releases_to_delete" && delete_old_releases "$releases_to_delete"
+
+  echo
+  log_success successfully deployed
+  echo
 }
 
 require_no_local_changes() {
@@ -965,6 +1004,119 @@ cleanup() {
   test -n "$tmp_dir" && test -d "$tmp_dir" && rm -fr "$tmp_dir"
 }
 
+# ## Cleaning up old releases
+#
+# **deploy** creates a new release directory for each deployment.
+# By default, it keeps these directories forever, leaving you responsible for cleaning them up.
+#
+# If given a [`keep` option](#keep), it can do it for you automatically after each deployment.
+prepare_to_delete_old_releases() {
+
+  local keep="$DEPLOY_KEEP"
+  releases_to_delete=
+
+  if test -z "$keep" || [[ "$keep" == "all" ]]; then
+    return 0
+  fi
+
+  # **deploy** will list the contents of the `releases` directory on the server.
+  log listing previous releases
+  local list_releases_command="ls -1 $path/releases"
+
+  log_command "$list_releases_command"
+  local releases_list="$(run_silent "$list_releases_command")"
+  local number_of_releases="$(echo "$releases_list"|wc -l)"
+
+  # If no old release is found, deployment will proceed normally.
+  if test -z "$releases_list"; then
+    echo "    no old releases to delete"
+    return 0
+  fi
+
+  # If the number of old releases is equal to or greater than the `keep` number,
+  # **deploy** will print the list of releases that will be deleted in red.
+  local releases_to_keep=
+  if test "$number_of_releases" -lt "$keep"; then
+    releases_to_keep="$releases_list"
+  else
+    releases_to_keep="$(echo "$releases_list"|tail -n "$((keep-1))")"
+    releases_to_delete="$(echo "$releases_list"|reverse|tail -n "+$((keep))"|reverse)"
+  fi
+
+  echo
+
+  for old_release in $releases_to_delete; do
+    log_color $COLOR_RED "$path/releases/$old_release (will be deleted)"
+  done
+
+  # Old releases that will be kept will be shown in green.
+  for old_release in $releases_to_keep; do
+    log_color $COLOR_GREEN "$path/releases/$old_release (will be kept)"
+  done
+
+  # The current release being deployed is also indicated in green
+  # (as it counts in the `keep` number).
+  log_color $COLOR_GREEN "$path/releases/$release (current)"
+
+  # If there are any releases to delete, **deploy** will ask for confirmation.
+  if test -n "$releases_to_delete"; then
+    echo
+
+    local number_of_releases_to_delete="$(echo "$releases_to_delete"|wc -l)"
+    local message="$number_of_releases_to_delete release"
+    test "$number_of_releases_to_delete" -ne 1 && message="${message}s"
+
+    while test -z "$delete_releases"; do
+
+      log_prompt "$message will be deleted after the deployment. Please confirm (yes/no) "
+      read delete_releases
+
+      # Responding "no" interrupts the deployment and prints a help message explaining
+      # how to configure the `keep` number.
+      if [[ "$delete_releases" =~ ^(0|n|no|f|false)$ ]]; then
+        echo
+        echo "Use the \"keep\" configuration file option, the -k|--keep command line option"
+        echo "or the \$DEPLOY_KEEP variable to change the number of old releases that are kept"
+        echo "(use the value \"all\" to keep all releases forever)."
+        abort "deployment interrupted"
+      elif ! [[ "$delete_releases" =~ ^(1|y|yes|t|true)$ ]]; then
+        delete_releases=
+      fi
+    done
+  fi
+}
+
+# The actual cleanup of old releases is always performed **after successful deployment**.
+delete_old_releases() {
+
+  if test -z "$releases_to_delete"; then
+    return 0
+  fi
+
+  log deleting old releases
+
+  local old_ifs=$IFS
+  IFS=$'\n'
+
+  local directories=
+  for release in $releases_to_delete; do
+    IFS="$old_ifs"
+    directories="$directories \"$path/releases/$release\""
+    IFS=$'\n'
+  done
+
+  IFS="$old_ifs"
+
+  # A single `rm` command is executed on the server through SSH,
+  # deleting all appropriate old release directories in one go.
+  run "rm -fr $directories"
+
+  local number_of_releases_to_delete="$(echo "$releases_to_delete"|wc -l)"
+  local message="$number_of_releases_to_delete old release"
+  test "$number_of_releases_to_delete" -ne 1 && message="${message}s"
+  log_success "$message deleted"
+}
+
 
 
 
@@ -1010,6 +1162,24 @@ log_command() {
   echo_color $COLOR_YELLOW "$@" | tr -s ' ' | sed 's/^/    /'
 }
 
+# * **Input prompts** will be printed in magenta.
+log_prompt() {
+  echo -n "$(echo_color $COLOR_MAGENTA "$@")" | tr -s ' ' | sed 's/^/    /'
+}
+
+# * Some output will be printed in various colors to indicate status.
+log_color() {
+  local color="$1"
+  shift
+  local message="$@"
+  echo_color "$color" "$message" | tr -s ' ' | sed 's/^/    /'
+}
+
+# * **Success** message will be printed in green.
+log_success() {
+  echo_color $COLOR_GREEN "$@" | tr -s ' ' | sed 's/^/    /'
+}
+
 # * **Errors** will be printed in red.
 log_error() {
   echo_color $COLOR_RED "$@" 1>&2
@@ -1022,6 +1192,10 @@ abort() {
   log_error "  $message"
   echo
   exit 1
+}
+
+reverse() {
+  tac 2> /dev/null || tail -r
 }
 
 main $@
