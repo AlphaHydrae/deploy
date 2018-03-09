@@ -907,7 +907,7 @@ open_remote_console() {
 
 # <a name="cleanup"></a>
 
-# ### `cleanup [--keep n]`
+# ### `<env> cleanup [--keep n]`
 #
 # Deletes old releases based on the [`keep` option](#keep).
 #
@@ -917,6 +917,7 @@ open_remote_console() {
 #
 # The releases to delete will be listed and confirmation will be asked before they are actually deleted.
 cleanup() {
+  require_env
 
   DEPLOY_KEEP=$(get_last_config_key_value keep)
 

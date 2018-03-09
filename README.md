@@ -37,7 +37,7 @@ Shamelessly inspired by: [visionmedia/deploy](https://github.com/visionmedia/dep
   - [`<env> config-all <key>`](#env-config-all-key)
   - [`[env] config-section`](#env-config-section)
   - [`<env> console [path]`](#env-console-path)
-  - [`cleanup [--keep n]`](#cleanup---keep-n)
+  - [`<env> cleanup [--keep n]`](#env-cleanup---keep-n)
   - [`<env> exec <cmd>`](#env-exec-cmd)
   - [`<env> list`](#env-list)
   - [`update [--prefix dir] [--path path] [rev]`](#update---prefix-dir---path-path-rev)
@@ -498,7 +498,7 @@ Launch an interactive **ssh session** on the host.
 
 <a name="cleanup"></a>
 
-### `cleanup [--keep n]`
+### `<env> cleanup [--keep n]`
 
 Deletes old releases based on the [`keep` option](#keep).
 

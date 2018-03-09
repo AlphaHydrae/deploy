@@ -1723,7 +1723,7 @@ If no environment is specified, the default config section is printed.</p>
               <div class="pilwrap ">
                 <a class="pilcrow" href="#section-69">&#182;</a>
               </div>
-              <h3 id="-cleanup-keep-n-"><code>cleanup [--keep n]</code></h3>
+              <h3 id="-env-cleanup-keep-n-"><code>&lt;env&gt; cleanup [--keep n]</code></h3>
 <p>Deletes old releases based on the <a href="#keep"><code>keep</code> option</a>.</p>
 <p>The number of releases to keep defaults on the <code>keep</code> configuration file option
 or the <code>$DEPLOY_KEEP</code> variable, but can also be overriden with the <code>-k|--keep</code>
@@ -1733,6 +1733,7 @@ command line option.</p>
             </div>
             
             <div class="content"><div class='highlight'><pre><span class="hljs-function"><span class="hljs-title">cleanup</span></span>() {
+  require_env
 
   DEPLOY_KEEP=$(get_last_config_key_value keep)
 
