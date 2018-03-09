@@ -129,6 +129,7 @@ deploy production rev master
     &lt;env&gt; console [path]        open an ssh session to the host
     &lt;env&gt; <span class="hljs-built_in">exec</span> &lt;cmd&gt;            execute the given <span class="hljs-built_in">command</span> on the host
     &lt;env&gt; list                  list deployed releases
+    &lt;env&gt; cleanup               clean up old releases
 
   Other commands:
 
@@ -616,8 +617,9 @@ post-deploy  tar -czf <span class="hljs-variable">$DEPLOY_PATH</span>/cache.gz n
 <strong><code>keep &lt;n&gt;</code></strong> (or the <code>$DEPLOY_KEEP</code> variable) defines how many releases to keep after deploying.
 Older releases will be deleted. It must be either <code>all</code> (the default), or an integer greater than zero.</p>
 <p>If it’s a number, it indicates the number of releases that should be kept <strong>after successful deployment</strong>.
-For example, with <code>keep</code> set to 3, if there are 5 old releases deployed before running the scrip, 3 will be deleted
+For example, with <code>keep</code> set to 3, if there are 5 old releases deployed before running the script, 3 will be deleted
 (so that 2 old releases and the new one being deployed, 3 in total, remain).</p>
+<p>It’s also possible to manually trigger cleanup with the <a href="#cleanup">cleanup</a> command.</p>
 </li>
 </ul>
 
@@ -1009,6 +1011,7 @@ deploy --config foo.conf production setup
             <div class="content"><div class='highlight'><pre>      --color) DEPLOY_COLOR=<span class="hljs-variable">$1</span>; <span class="hljs-built_in">shift</span> ;;
 
       <span class="hljs-built_in">exec</span>) exec_remote_command <span class="hljs-variable">$@</span>; <span class="hljs-built_in">exit</span> ;;
+      cleanup) cleanup <span class="hljs-variable">$@</span>; <span class="hljs-built_in">exit</span> ;;
       console) open_remote_console <span class="hljs-variable">$@</span>; <span class="hljs-built_in">exit</span> ;;
       setup) setup <span class="hljs-variable">$@</span>; <span class="hljs-built_in">exit</span> ;;
       list) list_releases; <span class="hljs-built_in">exit</span> ;;
@@ -1337,7 +1340,7 @@ confirmation will be asked.</li>
 
             </div>
             
-            <div class="content"><div class='highlight'><pre>  prepare_to_delete_old_releases</pre></div></div>
+            <div class="content"><div class='highlight'><pre>  prepare_to_delete_old_releases deploy</pre></div></div>
             
         </li>
         
@@ -1707,6 +1710,66 @@ If no environment is specified, the default config section is printed.</p>
               <div class="pilwrap ">
                 <a class="pilcrow" href="#section-68">&#182;</a>
               </div>
+              <p><a name="cleanup"></a></p>
+
+            </div>
+            
+        </li>
+        
+        
+        <li id="section-69">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-69">&#182;</a>
+              </div>
+              <h3 id="-cleanup-keep-n-"><code>cleanup [--keep n]</code></h3>
+<p>Deletes old releases based on the <a href="#keep"><code>keep</code> option</a>.</p>
+<p>The number of releases to keep defaults on the <code>keep</code> configuration file option
+or the <code>$DEPLOY_KEEP</code> variable, but can also be overriden with the <code>-k|--keep</code>
+command line option.</p>
+<p>The releases to delete will be listed and confirmation will be asked before they are actually deleted.</p>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre><span class="hljs-function"><span class="hljs-title">cleanup</span></span>() {
+
+  DEPLOY_KEEP=$(get_last_config_key_value keep)
+
+  <span class="hljs-built_in">local</span> rev=
+  <span class="hljs-keyword">while</span> <span class="hljs-built_in">test</span> <span class="hljs-variable">$#</span> -ne 0; <span class="hljs-keyword">do</span>
+    arg=<span class="hljs-variable">$1</span>; <span class="hljs-built_in">shift</span>
+    <span class="hljs-keyword">case</span> <span class="hljs-variable">$arg</span> <span class="hljs-keyword">in</span>
+      -k|--keep) DEPLOY_KEEP=<span class="hljs-string">"<span class="hljs-variable">$1</span>"</span>; <span class="hljs-built_in">shift</span> ;;
+      *) abort <span class="hljs-string">"unknown command or option <span class="hljs-variable">$arg</span>"</span> ;;
+    <span class="hljs-keyword">esac</span>
+  <span class="hljs-keyword">done</span>
+
+  validate_keep
+
+  <span class="hljs-built_in">log</span> cleaning up
+  <span class="hljs-built_in">echo</span> <span class="hljs-string">"    keep: <span class="hljs-variable">${DEPLOY_KEEP:-all}</span>"</span>
+
+  prepare_to_delete_old_releases cleanup
+
+  <span class="hljs-keyword">if</span> <span class="hljs-built_in">test</span> -z <span class="hljs-string">"<span class="hljs-variable">$releases_to_delete</span>"</span>; <span class="hljs-keyword">then</span>
+    <span class="hljs-built_in">echo</span>
+    log_success <span class="hljs-string">"nothing to clean up"</span>
+    <span class="hljs-built_in">echo</span>
+  <span class="hljs-keyword">else</span>
+    delete_old_releases
+  <span class="hljs-keyword">fi</span>
+}</pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-70">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-70">&#182;</a>
+              </div>
               <h3 id="-env-exec-cmd-"><code>&lt;env&gt; exec &lt;cmd&gt;</code></h3>
 <p><strong>Execute</strong> the specified command on the host.</p>
 <pre><code class="lang-sh">deploy production <span class="hljs-built_in">exec</span> ps -ef
@@ -1723,11 +1786,11 @@ If no environment is specified, the default config section is printed.</p>
         </li>
         
         
-        <li id="section-69">
+        <li id="section-71">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-69">&#182;</a>
+                <a class="pilcrow" href="#section-71">&#182;</a>
               </div>
               <p><a name="list"></a></p>
 
@@ -1736,11 +1799,11 @@ If no environment is specified, the default config section is printed.</p>
         </li>
         
         
-        <li id="section-70">
+        <li id="section-72">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-70">&#182;</a>
+                <a class="pilcrow" href="#section-72">&#182;</a>
               </div>
               <h3 id="-env-list-"><code>&lt;env&gt; list</code></h3>
 <p>List the <strong>releases</strong> that have been deployed on the host.</p>
@@ -1761,11 +1824,11 @@ If no environment is specified, the default config section is printed.</p>
         </li>
         
         
-        <li id="section-71">
+        <li id="section-73">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-71">&#182;</a>
+                <a class="pilcrow" href="#section-73">&#182;</a>
               </div>
               <h3 id="-update-prefix-dir-path-path-rev-"><code>update [--prefix dir] [--path path] [rev]</code></h3>
 <p>Updates <strong>deploy</strong> to the latest version by downloading it from the Git repository and installing it at <code>/usr/local/bin/deploy</code> (by default).</p>
@@ -1780,11 +1843,11 @@ If no environment is specified, the default config section is printed.</p>
         </li>
         
         
-        <li id="section-72">
+        <li id="section-74">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-72">&#182;</a>
+                <a class="pilcrow" href="#section-74">&#182;</a>
               </div>
               <p>In addition to the basic requirements, this sub-command also requires <code>chmod</code>, <code>cp</code> and <code>mktemp</code> to be available in the shell.</p>
 
@@ -1801,11 +1864,11 @@ If no environment is specified, the default config section is printed.</p>
         </li>
         
         
-        <li id="section-73">
+        <li id="section-75">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-73">&#182;</a>
+                <a class="pilcrow" href="#section-75">&#182;</a>
               </div>
               <ul>
 <li>If a <strong><code>--prefix &lt;dir&gt;</code></strong> directory is specified, the script will be installed
@@ -1819,11 +1882,11 @@ at <code>bin/deploy</code> relative to that directory.</li>
         </li>
         
         
-        <li id="section-74">
+        <li id="section-76">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-74">&#182;</a>
+                <a class="pilcrow" href="#section-76">&#182;</a>
               </div>
               <ul>
 <li>If a <strong><code>--path &lt;file&gt;</code></strong> file is specified, the script will be installed there
@@ -1837,11 +1900,11 @@ at <code>bin/deploy</code> relative to that directory.</li>
         </li>
         
         
-        <li id="section-75">
+        <li id="section-77">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-75">&#182;</a>
+                <a class="pilcrow" href="#section-77">&#182;</a>
               </div>
               <ul>
 <li>The optional <strong><code>[rev]</code></strong> argument is the Git revision at which to install the script.
@@ -1865,11 +1928,11 @@ This defaults to <code>master</code>.</li>
         </li>
         
         
-        <li id="section-76">
+        <li id="section-78">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-76">&#182;</a>
+                <a class="pilcrow" href="#section-78">&#182;</a>
               </div>
               <p>The installation path must be a writable file or not exist.
 If the installation path does not already exist, its parent must be a writable directory.</p>
@@ -1890,27 +1953,27 @@ If the installation path does not already exist, its parent must be a writable d
         </li>
         
         
-        <li id="section-77">
+        <li id="section-79">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-77">&#182;</a>
+                <a class="pilcrow" href="#section-79">&#182;</a>
               </div>
               <p>To perform the update, <strong>deploy</strong> will download its Git repository into a temporary directory that will be cleaned up when the update is done (or fails).</p>
 
             </div>
             
             <div class="content"><div class='highlight'><pre>  <span class="hljs-built_in">local</span> tmp_dir=`mktemp -d -t deploy`
-  <span class="hljs-built_in">trap</span> <span class="hljs-string">"cleanup <span class="hljs-variable">$tmp_dir</span>"</span> EXIT</pre></div></div>
+  <span class="hljs-built_in">trap</span> <span class="hljs-string">"local_cleanup <span class="hljs-variable">$tmp_dir</span>"</span> EXIT</pre></div></div>
             
         </li>
         
         
-        <li id="section-78">
+        <li id="section-80">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-78">&#182;</a>
+                <a class="pilcrow" href="#section-80">&#182;</a>
               </div>
               <p>The correct revision of the script is then copied to the installation path and made executable.</p>
 
@@ -1929,7 +1992,7 @@ If the installation path does not already exist, its parent must be a writable d
   <span class="hljs-built_in">log</span> <span class="hljs-string">"updated <span class="hljs-variable">$VERSION</span> -&gt; `./bin/deploy --version`"</span>
 }
 
-<span class="hljs-function"><span class="hljs-title">cleanup</span></span>() {
+<span class="hljs-function"><span class="hljs-title">local_cleanup</span></span>() {
   <span class="hljs-built_in">local</span> tmp_dir=<span class="hljs-string">"<span class="hljs-variable">$1</span>"</span>
   <span class="hljs-built_in">test</span> -n <span class="hljs-string">"<span class="hljs-variable">$tmp_dir</span>"</span> &amp;&amp; <span class="hljs-built_in">test</span> -d <span class="hljs-string">"<span class="hljs-variable">$tmp_dir</span>"</span> &amp;&amp; rm -fr <span class="hljs-string">"<span class="hljs-variable">$tmp_dir</span>"</span>
 }</pre></div></div>
@@ -1937,11 +2000,11 @@ If the installation path does not already exist, its parent must be a writable d
         </li>
         
         
-        <li id="section-79">
+        <li id="section-81">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-79">&#182;</a>
+                <a class="pilcrow" href="#section-81">&#182;</a>
               </div>
               <h2 id="cleaning-up-old-releases">Cleaning up old releases</h2>
 <p><strong>deploy</strong> creates a new release directory for each deployment.
@@ -1952,7 +2015,11 @@ By default, it keeps these directories forever, leaving you responsible for clea
             
             <div class="content"><div class='highlight'><pre><span class="hljs-function"><span class="hljs-title">prepare_to_delete_old_releases</span></span>() {
 
+  <span class="hljs-built_in">local</span> <span class="hljs-built_in">command</span>=<span class="hljs-string">"<span class="hljs-variable">$1</span>"</span>
+
   <span class="hljs-built_in">local</span> keep=<span class="hljs-string">"<span class="hljs-variable">$DEPLOY_KEEP</span>"</span>
+  <span class="hljs-built_in">local</span> path=$(get_last_config_key_value path)
+  <span class="hljs-built_in">local</span> release=$(date -u <span class="hljs-string">'+%Y-%m-%d-%H-%M-%S'</span>)
   releases_to_delete=
 
   <span class="hljs-keyword">if</span> <span class="hljs-built_in">test</span> -z <span class="hljs-string">"<span class="hljs-variable">$keep</span>"</span> || [[ <span class="hljs-string">"<span class="hljs-variable">$keep</span>"</span> == <span class="hljs-string">"all"</span> ]]; <span class="hljs-keyword">then</span>
@@ -1962,11 +2029,11 @@ By default, it keeps these directories forever, leaving you responsible for clea
         </li>
         
         
-        <li id="section-80">
+        <li id="section-82">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-80">&#182;</a>
+                <a class="pilcrow" href="#section-82">&#182;</a>
               </div>
               <p><strong>deploy</strong> will list the contents of the <code>releases</code> directory on the server.</p>
 
@@ -1982,11 +2049,11 @@ By default, it keeps these directories forever, leaving you responsible for clea
         </li>
         
         
-        <li id="section-81">
+        <li id="section-83">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-81">&#182;</a>
+                <a class="pilcrow" href="#section-83">&#182;</a>
               </div>
               <p>If no old release is found, deployment will proceed normally.</p>
 
@@ -2000,11 +2067,11 @@ By default, it keeps these directories forever, leaving you responsible for clea
         </li>
         
         
-        <li id="section-82">
+        <li id="section-84">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-82">&#182;</a>
+                <a class="pilcrow" href="#section-84">&#182;</a>
               </div>
               <p>If the number of old releases is equal to or greater than the <code>keep</code> number,
 <strong>deploy</strong> will print the list of releases that will be deleted in red.</p>
@@ -2012,53 +2079,25 @@ By default, it keeps these directories forever, leaving you responsible for clea
             </div>
             
             <div class="content"><div class='highlight'><pre>  <span class="hljs-built_in">local</span> releases_to_keep=
-  <span class="hljs-keyword">if</span> <span class="hljs-built_in">test</span> <span class="hljs-string">"<span class="hljs-variable">$number_of_releases</span>"</span> -lt <span class="hljs-string">"<span class="hljs-variable">$keep</span>"</span>; <span class="hljs-keyword">then</span>
+  <span class="hljs-keyword">if</span> [[ <span class="hljs-string">"<span class="hljs-variable">$command</span>"</span> == <span class="hljs-string">"deploy"</span> ]] &amp;&amp; <span class="hljs-built_in">test</span> <span class="hljs-string">"<span class="hljs-variable">$number_of_releases</span>"</span> -lt <span class="hljs-string">"<span class="hljs-variable">$keep</span>"</span> || <span class="hljs-built_in">test</span> <span class="hljs-string">"<span class="hljs-variable">$number_of_releases</span>"</span> -le <span class="hljs-string">"<span class="hljs-variable">$keep</span>"</span>; <span class="hljs-keyword">then</span>
     releases_to_keep=<span class="hljs-string">"<span class="hljs-variable">$releases_list</span>"</span>
   <span class="hljs-keyword">else</span>
-    releases_to_keep=<span class="hljs-string">"<span class="hljs-variable">$(echo "$releases_list"|tail -n "$((keep-1)</span>)"</span>)<span class="hljs-string">"
-    releases_to_delete="</span>$(<span class="hljs-built_in">echo</span> <span class="hljs-string">"<span class="hljs-variable">$releases_list</span>"</span>|reverse|tail -n <span class="hljs-string">"+<span class="hljs-variable">$((keep)</span>)"</span>|reverse)<span class="hljs-string">"
-  fi
 
-  echo
+    <span class="hljs-built_in">local</span> to_keep=<span class="hljs-variable">$keep</span>
+    [[ <span class="hljs-string">"<span class="hljs-variable">$command</span>"</span> == <span class="hljs-string">"deploy"</span> ]] &amp;&amp; to_keep=$((to_keep-1))
 
-  for old_release in <span class="hljs-variable">$releases_to_delete</span>; do
-    log_color <span class="hljs-variable">$COLOR_RED</span> "</span><span class="hljs-variable">$path</span>/releases/<span class="hljs-variable">$old_release</span> (will be deleted)<span class="hljs-string">"
-  done
+    <span class="hljs-built_in">local</span> to_delete=<span class="hljs-variable">$keep</span>
+    [[ <span class="hljs-string">"<span class="hljs-variable">$command</span>"</span> != <span class="hljs-string">"deploy"</span> ]] &amp;&amp; to_delete=$((to_delete+1))
 
-</span></pre></div></div>
-            
-        </li>
-        
-        
-        <li id="section-83">
-            <div class="annotation">
-              
-              <div class="pilwrap ">
-                <a class="pilcrow" href="#section-83">&#182;</a>
-              </div>
-              <p>Old releases that will be kept will be shown in green.</p>
+    releases_to_keep=<span class="hljs-string">"<span class="hljs-variable">$(echo "$releases_list"|tail -n "$to_keep")</span>"</span>
+    releases_to_delete=<span class="hljs-string">"<span class="hljs-variable">$(echo "$releases_list"|reverse|tail -n "+$to_delete"|reverse)</span>"</span>
+  <span class="hljs-keyword">fi</span>
 
-            </div>
-            
-            <div class="content"><div class='highlight'><pre>  <span class="hljs-keyword">for</span> old_release <span class="hljs-keyword">in</span> <span class="hljs-variable">$releases_to_keep</span>; <span class="hljs-keyword">do</span>
-    log_color <span class="hljs-variable">$COLOR_GREEN</span> <span class="hljs-string">"<span class="hljs-variable">$path</span>/releases/<span class="hljs-variable">$old_release</span> (will be kept)"</span>
+  <span class="hljs-built_in">echo</span>
+
+  <span class="hljs-keyword">for</span> old_release <span class="hljs-keyword">in</span> <span class="hljs-variable">$releases_to_delete</span>; <span class="hljs-keyword">do</span>
+    log_color <span class="hljs-variable">$COLOR_RED</span> <span class="hljs-string">"<span class="hljs-variable">$path</span>/releases/<span class="hljs-variable">$old_release</span> (will be deleted)"</span>
   <span class="hljs-keyword">done</span></pre></div></div>
-            
-        </li>
-        
-        
-        <li id="section-84">
-            <div class="annotation">
-              
-              <div class="pilwrap ">
-                <a class="pilcrow" href="#section-84">&#182;</a>
-              </div>
-              <p>The current release being deployed is also indicated in green
-(as it counts in the <code>keep</code> number).</p>
-
-            </div>
-            
-            <div class="content"><div class='highlight'><pre>  log_color <span class="hljs-variable">$COLOR_GREEN</span> <span class="hljs-string">"<span class="hljs-variable">$path</span>/releases/<span class="hljs-variable">$release</span> (current)"</span></pre></div></div>
             
         </li>
         
@@ -2068,6 +2107,42 @@ By default, it keeps these directories forever, leaving you responsible for clea
               
               <div class="pilwrap ">
                 <a class="pilcrow" href="#section-85">&#182;</a>
+              </div>
+              <p>Old releases that will be kept will be shown in green.</p>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>  <span class="hljs-keyword">for</span> old_release <span class="hljs-keyword">in</span> <span class="hljs-variable">$releases_to_keep</span>; <span class="hljs-keyword">do</span>
+    log_color <span class="hljs-variable">$COLOR_GREEN</span> <span class="hljs-string">"<span class="hljs-variable">$path</span>/releases/<span class="hljs-variable">$old_release</span> (will be kept)"</span>
+  <span class="hljs-keyword">done</span>
+
+  <span class="hljs-keyword">if</span> [[ <span class="hljs-string">"<span class="hljs-variable">$command</span>"</span> == <span class="hljs-string">"deploy"</span> ]]; <span class="hljs-keyword">then</span></pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-86">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-86">&#182;</a>
+              </div>
+              <p>During deployment, the current release being deployed is also indicated in green
+(as it counts in the <code>keep</code> number).</p>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>    log_color <span class="hljs-variable">$COLOR_GREEN</span> <span class="hljs-string">"<span class="hljs-variable">$path</span>/releases/<span class="hljs-variable">$release</span> (current)"</span>
+  <span class="hljs-keyword">fi</span></pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-87">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-87">&#182;</a>
               </div>
               <p>If there are any releases to delete, <strong>deploy</strong> will ask for confirmation.</p>
 
@@ -2082,17 +2157,17 @@ By default, it keeps these directories forever, leaving you responsible for clea
 
     <span class="hljs-keyword">while</span> <span class="hljs-built_in">test</span> -z <span class="hljs-string">"<span class="hljs-variable">$delete_releases</span>"</span>; <span class="hljs-keyword">do</span>
 
-      log_prompt <span class="hljs-string">"<span class="hljs-variable">$message</span> will be deleted after the deployment. Please confirm (yes/no) "</span>
+      log_prompt <span class="hljs-string">"<span class="hljs-variable">$message</span> will be deleted. Please confirm (yes/no) "</span>
       <span class="hljs-built_in">read</span> delete_releases</pre></div></div>
             
         </li>
         
         
-        <li id="section-86">
+        <li id="section-88">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-86">&#182;</a>
+                <a class="pilcrow" href="#section-88">&#182;</a>
               </div>
               <p>Responding “no” interrupts the deployment and prints a help message explaining
 how to configure the <code>keep</code> number.</p>
@@ -2115,11 +2190,11 @@ how to configure the <code>keep</code> number.</p>
         </li>
         
         
-        <li id="section-87">
+        <li id="section-89">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-87">&#182;</a>
+                <a class="pilcrow" href="#section-89">&#182;</a>
               </div>
               <p>The actual cleanup of old releases is always performed <strong>after successful deployment</strong>.</p>
 
@@ -2148,11 +2223,11 @@ how to configure the <code>keep</code> number.</p>
         </li>
         
         
-        <li id="section-88">
+        <li id="section-90">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-88">&#182;</a>
+                <a class="pilcrow" href="#section-90">&#182;</a>
               </div>
               <p>A single <code>rm</code> command is executed on the server through SSH,
 deleting all appropriate old release directories in one go.</p>
@@ -2170,11 +2245,11 @@ deleting all appropriate old release directories in one go.</p>
         </li>
         
         
-        <li id="section-89">
+        <li id="section-91">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-89">&#182;</a>
+                <a class="pilcrow" href="#section-91">&#182;</a>
               </div>
               <!-- annotated-source-only -->
 <h2 id="output-exit-codes">Output &amp; exit codes</h2>
@@ -2185,11 +2260,11 @@ deleting all appropriate old release directories in one go.</p>
         </li>
         
         
-        <li id="section-90">
+        <li id="section-92">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-90">&#182;</a>
+                <a class="pilcrow" href="#section-92">&#182;</a>
               </div>
               <p>Those messages are printed in colors by default on interactive terminals (this can be disabled with the <code>--color never</code> option or <code>$DEPLOY_COLOR</code> variable).</p>
 
@@ -2222,11 +2297,11 @@ deleting all appropriate old release directories in one go.</p>
         </li>
         
         
-        <li id="section-91">
+        <li id="section-93">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-91">&#182;</a>
+                <a class="pilcrow" href="#section-93">&#182;</a>
               </div>
               <ul>
 <li><strong>Deployment progress updates</strong> will be printed in bold.</li>
@@ -2242,11 +2317,11 @@ deleting all appropriate old release directories in one go.</p>
         </li>
         
         
-        <li id="section-92">
+        <li id="section-94">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-92">&#182;</a>
+                <a class="pilcrow" href="#section-94">&#182;</a>
               </div>
               <ul>
 <li><strong>Commands executed</strong> on the host will be printed in yellow.</li>
@@ -2261,11 +2336,11 @@ deleting all appropriate old release directories in one go.</p>
         </li>
         
         
-        <li id="section-93">
+        <li id="section-95">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-93">&#182;</a>
+                <a class="pilcrow" href="#section-95">&#182;</a>
               </div>
               <ul>
 <li><strong>Input prompts</strong> will be printed in magenta.</li>
@@ -2280,11 +2355,11 @@ deleting all appropriate old release directories in one go.</p>
         </li>
         
         
-        <li id="section-94">
+        <li id="section-96">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-94">&#182;</a>
+                <a class="pilcrow" href="#section-96">&#182;</a>
               </div>
               <ul>
 <li>Some output will be printed in various colors to indicate status.</li>
@@ -2302,11 +2377,11 @@ deleting all appropriate old release directories in one go.</p>
         </li>
         
         
-        <li id="section-95">
+        <li id="section-97">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-95">&#182;</a>
+                <a class="pilcrow" href="#section-97">&#182;</a>
               </div>
               <ul>
 <li><strong>Success</strong> message will be printed in green.</li>
@@ -2321,11 +2396,11 @@ deleting all appropriate old release directories in one go.</p>
         </li>
         
         
-        <li id="section-96">
+        <li id="section-98">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-96">&#182;</a>
+                <a class="pilcrow" href="#section-98">&#182;</a>
               </div>
               <ul>
 <li><strong>Errors</strong> will be printed in red.</li>
@@ -2340,11 +2415,11 @@ deleting all appropriate old release directories in one go.</p>
         </li>
         
         
-        <li id="section-97">
+        <li id="section-99">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-97">&#182;</a>
+                <a class="pilcrow" href="#section-99">&#182;</a>
               </div>
               <p>If <strong>deploy</strong> encounters an unrecoverable error, it will log an error and exit with status 1.</p>
 
@@ -2367,11 +2442,11 @@ main <span class="hljs-variable">$@</span></pre></div></div>
         </li>
         
         
-        <li id="section-98">
+        <li id="section-100">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-98">&#182;</a>
+                <a class="pilcrow" href="#section-100">&#182;</a>
               </div>
               <h2 id="about-this-page">About this page</h2>
 <p>Documentation generated with <a href="http://ashkenas.com/docco/">Docco</a>.

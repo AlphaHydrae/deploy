@@ -37,6 +37,7 @@ Shamelessly inspired by: [visionmedia/deploy](https://github.com/visionmedia/dep
   - [`<env> config-all <key>`](#env-config-all-key)
   - [`[env] config-section`](#env-config-section)
   - [`<env> console [path]`](#env-console-path)
+  - [`cleanup [--keep n]`](#cleanup---keep-n)
   - [`<env> exec <cmd>`](#env-exec-cmd)
   - [`<env> list`](#env-list)
   - [`update [--prefix dir] [--path path] [rev]`](#update---prefix-dir---path-path-rev)
@@ -266,8 +267,10 @@ See the [`setup`](#setup) and [`rev`](#deploy) commands to learn exactly when an
   Older releases will be deleted. It must be either `all` (the default), or an integer greater than zero.
 
   If it's a number, it indicates the number of releases that should be kept **after successful deployment**.
-  For example, with `keep` set to 3, if there are 5 old releases deployed before running the scrip, 3 will be deleted
+  For example, with `keep` set to 3, if there are 5 old releases deployed before running the script, 3 will be deleted
   (so that 2 old releases and the new one being deployed, 3 in total, remain).
+
+  It's also possible to manually trigger cleanup with the [cleanup](#cleanup) command.
 
 ### SSH connection
 
@@ -493,6 +496,18 @@ Launch an interactive **ssh session** on the host.
   deploy production console current
   ```
 
+<a name="cleanup"></a>
+
+### `cleanup [--keep n]`
+
+Deletes old releases based on the [`keep` option](#keep).
+
+The number of releases to keep defaults on the `keep` configuration file option
+or the `$DEPLOY_KEEP` variable, but can also be overriden with the `-k|--keep`
+command line option.
+
+The releases to delete will be listed and confirmation will be asked before they are actually deleted.
+
 ### `<env> exec <cmd>`
 
 **Execute** the specified command on the host.
@@ -552,7 +567,7 @@ If the number of old releases is equal to or greater than the `keep` number,
 
 Old releases that will be kept will be shown in green.
 
-The current release being deployed is also indicated in green
+During deployment, the current release being deployed is also indicated in green
 (as it counts in the `keep` number).
 
 If there are any releases to delete, **deploy** will ask for confirmation.

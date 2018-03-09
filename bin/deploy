@@ -83,6 +83,7 @@ usage() {
     <env> console [path]        open an ssh session to the host
     <env> exec <cmd>            execute the given command on the host
     <env> list                  list deployed releases
+    <env> cleanup               clean up old releases
 
   Other commands:
 
@@ -437,8 +438,10 @@ run_hooks() {
 #   Older releases will be deleted. It must be either `all` (the default), or an integer greater than zero.
 #
 #   If it's a number, it indicates the number of releases that should be kept **after successful deployment**.
-#   For example, with `keep` set to 3, if there are 5 old releases deployed before running the scrip, 3 will be deleted
+#   For example, with `keep` set to 3, if there are 5 old releases deployed before running the script, 3 will be deleted
 #   (so that 2 old releases and the new one being deployed, 3 in total, remain).
+#
+#   It's also possible to manually trigger cleanup with the [cleanup](#cleanup) command.
 validate_keep() {
   test -z "$DEPLOY_KEEP" || [[ "$DEPLOY_KEEP" == "all" ]] || [[ "$DEPLOY_KEEP" =~ ^[1-9][0-9]*$ ]] || abort "keep must be \"all\" or a positive integer greater than zero"
 }
@@ -578,6 +581,7 @@ main() {
       --color) DEPLOY_COLOR=$1; shift ;;
 
       exec) exec_remote_command $@; exit ;;
+      cleanup) cleanup $@; exit ;;
       console) open_remote_console $@; exit ;;
       setup) setup $@; exit ;;
       list) list_releases; exit ;;
@@ -744,7 +748,7 @@ deploy_rev() {
   # * If a [`keep` option](#keep) is configured, all previously deployed releases are listed,
   #   with those to be deleted in red, and those to be kept and the current release in green, and
   #   confirmation will be asked.
-  prepare_to_delete_old_releases
+  prepare_to_delete_old_releases deploy
 
   # * User-defined pre-deploy hooks (if any) are run **in the directory of the previous release**.
   #   You may define **pre-deploy hooks** to perform any task you might want to do before the actual deployment
@@ -901,6 +905,46 @@ open_remote_console() {
   $shell -t "cd $path; \$SHELL -il"
 }
 
+# <a name="cleanup"></a>
+
+# ### `cleanup [--keep n]`
+#
+# Deletes old releases based on the [`keep` option](#keep).
+#
+# The number of releases to keep defaults on the `keep` configuration file option
+# or the `$DEPLOY_KEEP` variable, but can also be overriden with the `-k|--keep`
+# command line option.
+#
+# The releases to delete will be listed and confirmation will be asked before they are actually deleted.
+cleanup() {
+
+  DEPLOY_KEEP=$(get_last_config_key_value keep)
+
+  local rev=
+  while test $# -ne 0; do
+    arg=$1; shift
+    case $arg in
+      -k|--keep) DEPLOY_KEEP="$1"; shift ;;
+      *) abort "unknown command or option $arg" ;;
+    esac
+  done
+
+  validate_keep
+
+  log cleaning up
+  echo "    keep: ${DEPLOY_KEEP:-all}"
+
+  prepare_to_delete_old_releases cleanup
+
+  if test -z "$releases_to_delete"; then
+    echo
+    log_success "nothing to clean up"
+    echo
+  else
+    delete_old_releases
+  fi
+}
+
 # ### `<env> exec <cmd>`
 #
 # **Execute** the specified command on the host.
@@ -983,7 +1027,7 @@ update_self() {
 
   # To perform the update, **deploy** will download its Git repository into a temporary directory that will be cleaned up when the update is done (or fails).
   local tmp_dir=`mktemp -d -t deploy`
-  trap "cleanup $tmp_dir" EXIT
+  trap "local_cleanup $tmp_dir" EXIT
 
   # The correct revision of the script is then copied to the installation path and made executable.
   cd "$tmp_dir" \
@@ -999,10 +1043,14 @@ update_self() {
   log "updated $VERSION -> `./bin/deploy --version`"
 }
 
-cleanup() {
+local_cleanup() {
   local tmp_dir="$1"
   test -n "$tmp_dir" && test -d "$tmp_dir" && rm -fr "$tmp_dir"
 }
+
+
+
+
 
 # ## Cleaning up old releases
 #
@@ -1012,7 +1060,11 @@ cleanup() {
 # If given a [`keep` option](#keep), it can do it for you automatically after each deployment.
 prepare_to_delete_old_releases() {
 
+  local command="$1"
+
   local keep="$DEPLOY_KEEP"
+  local path=$(get_last_config_key_value path)
+  local release=$(date -u '+%Y-%m-%d-%H-%M-%S')
   releases_to_delete=
 
   if test -z "$keep" || [[ "$keep" == "all" ]]; then
@@ -1036,11 +1088,18 @@ prepare_to_delete_old_releases() {
   # If the number of old releases is equal to or greater than the `keep` number,
   # **deploy** will print the list of releases that will be deleted in red.
   local releases_to_keep=
-  if test "$number_of_releases" -lt "$keep"; then
+  if [[ "$command" == "deploy" ]] && test "$number_of_releases" -lt "$keep" || test "$number_of_releases" -le "$keep"; then
     releases_to_keep="$releases_list"
   else
-    releases_to_keep="$(echo "$releases_list"|tail -n "$((keep-1))")"
-    releases_to_delete="$(echo "$releases_list"|reverse|tail -n "+$((keep))"|reverse)"
+
+    local to_keep=$keep
+    [[ "$command" == "deploy" ]] && to_keep=$((to_keep-1))
+
+    local to_delete=$keep
+    [[ "$command" != "deploy" ]] && to_delete=$((to_delete+1))
+
+    releases_to_keep="$(echo "$releases_list"|tail -n "$to_keep")"
+    releases_to_delete="$(echo "$releases_list"|reverse|tail -n "+$to_delete"|reverse)"
   fi
 
   echo
@@ -1054,9 +1113,11 @@ prepare_to_delete_old_releases() {
     log_color $COLOR_GREEN "$path/releases/$old_release (will be kept)"
   done
 
-  # The current release being deployed is also indicated in green
-  # (as it counts in the `keep` number).
-  log_color $COLOR_GREEN "$path/releases/$release (current)"
+  if [[ "$command" == "deploy" ]]; then
+    # During deployment, the current release being deployed is also indicated in green
+    # (as it counts in the `keep` number).
+    log_color $COLOR_GREEN "$path/releases/$release (current)"
+  fi
 
   # If there are any releases to delete, **deploy** will ask for confirmation.
   if test -n "$releases_to_delete"; then
@@ -1068,7 +1129,7 @@ prepare_to_delete_old_releases() {
 
     while test -z "$delete_releases"; do
 
-      log_prompt "$message will be deleted after the deployment. Please confirm (yes/no) "
+      log_prompt "$message will be deleted. Please confirm (yes/no) "
       read delete_releases
 
       # Responding "no" interrupts the deployment and prints a help message explaining

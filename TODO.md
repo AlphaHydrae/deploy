@@ -1,7 +1,8 @@
 # TODO
 
-* ask for cleanup confirmation
-* add cleanup command to delete old releases manually
+* pretty format for `list_releases`
+* combine `run` and `run_silent` functions
+* add -y|--yes option
 * check required commands on server (at setup)
 * make rev the default command
 * do not run pre-deploy hooks for first deployment
