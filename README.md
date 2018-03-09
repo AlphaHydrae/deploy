@@ -5,7 +5,7 @@
 **_A (magic) shell script to deploy Git repositories_**
 
 [![Build Status](https://travis-ci.org/AlphaHydrae/deploy.svg?branch=master)](https://travis-ci.org/AlphaHydrae/deploy)
-[![npm version](https://img.shields.io/badge/version-2.2.0-blue.svg)](https://badge.fury.io/js/bash-deploy)
+[![npm version](https://img.shields.io/badge/version-2.2.1-blue.svg)](https://badge.fury.io/js/bash-deploy)
 [![license](https://img.shields.io/npm/l/express.svg)](https://opensource.org/licenses/MIT)
 
 Read the [annotated source](https://alphahydrae.github.io/deploy/)
