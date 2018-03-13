@@ -1,6 +1,5 @@
 # TODO
 
-* pretty format for `list_releases`
 * combine `run` and `run_silent` functions
 * add -y|--yes option
 * check required commands on server (at setup)

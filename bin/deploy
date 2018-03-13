@@ -21,6 +21,7 @@ COLOR_RED=31
 COLOR_GREEN=32
 COLOR_YELLOW=33
 COLOR_MAGENTA=35
+COLOR_CYAN=36
 
 DEFAULT_CONFIG=./deploy.conf
 DEFAULT_UPDATE_REPO=git://github.com/AlphaHydrae/deploy.git
@@ -135,7 +136,7 @@ EOF
 
 # ## Requirements
 #
-# **deploy** is a one-file bash script which requires the following commands: `cat`, `cut`, `date`, `git`, `grep`, `ls`, `mkdir`, `sed`, `ssh`, `tail`, `tar` and `wc`.
+# **deploy** is a one-file bash script which requires the following commands: `cat`, `cut`, `date`, `git`, `grep`, `ls`, `mkdir`, `readlink`, `sed`, `ssh`, `tail`, `tar` and `wc`.
 # Most bash shells have all of those out of the box except perhaps [Git](https://git-scm.com).
 #
 # It also optionally requires the `chmod`, `cp` and `mktemp` commands to update itself.
@@ -974,7 +975,45 @@ exec_remote_command() {
 list_releases() {
   require_env
   local path=`get_last_config_key_value path`
-  run "ls -1 $path/releases"
+  local releases_path="$path/releases"
+
+  log "listing releases"
+  local list_releases_command="ls -1 '$releases_path'"
+  log_command "$list_releases_command"
+
+  local releases_list
+  releases_list="$(run_silent "$list_releases_command")"
+  test $? -eq 0 || abort "could not list releases directory $releases_path; make sure it exists and is readable"
+
+  if test -z "$releases_list"; then
+    echo
+    echo "No releases found"
+    echo
+    exit 0
+  fi
+
+  log "checking current"
+  local check_current_command="readlink $path/current"
+  log_command "$check_current_command"
+
+  local current_release_dir
+  current_release_dir="$(run_silent "$check_current_command")"
+
+  echo
+  for release in $releases_list; do
+    if [[ "$releases_path/$release" == "$current_release_dir" ]]; then
+      log_color $COLOR_GREEN "$releases_path/$release (current)"
+    else
+      log_color $COLOR_CYAN "$releases_path/$release"
+    fi
+  done
+
+  echo
+  local number_of_releases=$(echo "$releases_list"|wc -l)
+  local message="$number_of_releases release"
+  test $number_of_releases -ne 1 && message="${message}s"
+  log_success "$message found"
+  echo
 }
 
 # ### `update [--prefix dir] [--path path] [rev]`

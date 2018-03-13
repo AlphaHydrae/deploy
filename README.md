@@ -117,7 +117,7 @@ Or [download it](https://raw.githubusercontent.com/AlphaHydrae/deploy/master/bin
 
 ## Requirements
 
-**deploy** is a one-file bash script which requires the following commands: `cat`, `cut`, `date`, `git`, `grep`, `ls`, `mkdir`, `sed`, `ssh`, `tail`, `tar` and `wc`.
+**deploy** is a one-file bash script which requires the following commands: `cat`, `cut`, `date`, `git`, `grep`, `ls`, `mkdir`, `readlink`, `sed`, `ssh`, `tail`, `tar` and `wc`.
 Most bash shells have all of those out of the box except perhaps [Git](https://git-scm.com).
 
 It also optionally requires the `chmod`, `cp` and `mktemp` commands to update itself.

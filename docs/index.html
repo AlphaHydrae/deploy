@@ -62,6 +62,7 @@ COLOR_RED=31
 COLOR_GREEN=32
 COLOR_YELLOW=33
 COLOR_MAGENTA=35
+COLOR_CYAN=36
 
 DEFAULT_CONFIG=./deploy.conf
 DEFAULT_UPDATE_REPO=git://github.com/AlphaHydrae/deploy.git</pre></div></div>
@@ -190,7 +191,7 @@ EOF
                 <a class="pilcrow" href="#section-5">&#182;</a>
               </div>
               <h2 id="requirements">Requirements</h2>
-<p><strong>deploy</strong> is a one-file bash script which requires the following commands: <code>cat</code>, <code>cut</code>, <code>date</code>, <code>git</code>, <code>grep</code>, <code>ls</code>, <code>mkdir</code>, <code>sed</code>, <code>ssh</code>, <code>tail</code>, <code>tar</code> and <code>wc</code>.
+<p><strong>deploy</strong> is a one-file bash script which requires the following commands: <code>cat</code>, <code>cut</code>, <code>date</code>, <code>git</code>, <code>grep</code>, <code>ls</code>, <code>mkdir</code>, <code>readlink</code>, <code>sed</code>, <code>ssh</code>, <code>tail</code>, <code>tar</code> and <code>wc</code>.
 Most bash shells have all of those out of the box except perhaps <a href="https://git-scm.com">Git</a>.</p>
 <p>It also optionally requires the <code>chmod</code>, <code>cp</code> and <code>mktemp</code> commands to update itself.</p>
 
@@ -1819,7 +1820,45 @@ command line option.</p>
             <div class="content"><div class='highlight'><pre><span class="hljs-function"><span class="hljs-title">list_releases</span></span>() {
   require_env
   <span class="hljs-built_in">local</span> path=`get_last_config_key_value path`
-  run <span class="hljs-string">"ls -1 <span class="hljs-variable">$path</span>/releases"</span>
+  <span class="hljs-built_in">local</span> releases_path=<span class="hljs-string">"<span class="hljs-variable">$path</span>/releases"</span>
+
+  <span class="hljs-built_in">log</span> <span class="hljs-string">"listing releases"</span>
+  <span class="hljs-built_in">local</span> list_releases_command=<span class="hljs-string">"ls -1 '<span class="hljs-variable">$releases_path</span>'"</span>
+  log_command <span class="hljs-string">"<span class="hljs-variable">$list_releases_command</span>"</span>
+
+  <span class="hljs-built_in">local</span> releases_list
+  releases_list=<span class="hljs-string">"<span class="hljs-variable">$(run_silent "$list_releases_command")</span>"</span>
+  <span class="hljs-built_in">test</span> $? -eq 0 || abort <span class="hljs-string">"could not list releases directory <span class="hljs-variable">$releases_path</span>; make sure it exists and is readable"</span>
+
+  <span class="hljs-keyword">if</span> <span class="hljs-built_in">test</span> -z <span class="hljs-string">"<span class="hljs-variable">$releases_list</span>"</span>; <span class="hljs-keyword">then</span>
+    <span class="hljs-built_in">echo</span>
+    <span class="hljs-built_in">echo</span> <span class="hljs-string">"No releases found"</span>
+    <span class="hljs-built_in">echo</span>
+    <span class="hljs-built_in">exit</span> 0
+  <span class="hljs-keyword">fi</span>
+
+  <span class="hljs-built_in">log</span> <span class="hljs-string">"checking current"</span>
+  <span class="hljs-built_in">local</span> check_current_command=<span class="hljs-string">"readlink <span class="hljs-variable">$path</span>/current"</span>
+  log_command <span class="hljs-string">"<span class="hljs-variable">$check_current_command</span>"</span>
+
+  <span class="hljs-built_in">local</span> current_release_dir
+  current_release_dir=<span class="hljs-string">"<span class="hljs-variable">$(run_silent "$check_current_command")</span>"</span>
+
+  <span class="hljs-built_in">echo</span>
+  <span class="hljs-keyword">for</span> release <span class="hljs-keyword">in</span> <span class="hljs-variable">$releases_list</span>; <span class="hljs-keyword">do</span>
+    <span class="hljs-keyword">if</span> [[ <span class="hljs-string">"<span class="hljs-variable">$releases_path</span>/<span class="hljs-variable">$release</span>"</span> == <span class="hljs-string">"<span class="hljs-variable">$current_release_dir</span>"</span> ]]; <span class="hljs-keyword">then</span>
+      log_color <span class="hljs-variable">$COLOR_GREEN</span> <span class="hljs-string">"<span class="hljs-variable">$releases_path</span>/<span class="hljs-variable">$release</span> (current)"</span>
+    <span class="hljs-keyword">else</span>
+      log_color <span class="hljs-variable">$COLOR_CYAN</span> <span class="hljs-string">"<span class="hljs-variable">$releases_path</span>/<span class="hljs-variable">$release</span>"</span>
+    <span class="hljs-keyword">fi</span>
+  <span class="hljs-keyword">done</span>
+
+  <span class="hljs-built_in">echo</span>
+  <span class="hljs-built_in">local</span> number_of_releases=$(<span class="hljs-built_in">echo</span> <span class="hljs-string">"<span class="hljs-variable">$releases_list</span>"</span>|wc -l)
+  <span class="hljs-built_in">local</span> message=<span class="hljs-string">"<span class="hljs-variable">$number_of_releases</span> release"</span>
+  <span class="hljs-built_in">test</span> <span class="hljs-variable">$number_of_releases</span> -ne 1 &amp;&amp; message=<span class="hljs-string">"<span class="hljs-variable">${message}</span>s"</span>
+  log_success <span class="hljs-string">"<span class="hljs-variable">$message</span> found"</span>
+  <span class="hljs-built_in">echo</span>
 }</pre></div></div>
             
         </li>
