@@ -687,7 +687,9 @@ setup() {
   # * Run user-defined `post-setup` hooks (if any).
   run_hooks post-setup "$path"
 
-  log setup complete
+  echo
+  log_success "setup complete"
+  echo
 }
 
 # <a name="deploy"></a>
