@@ -68,7 +68,7 @@ DEFAULT_UPDATE_REPO=git://github.com/AlphaHydrae/deploy.git
 usage() {
   cat <<-EOF
 
-  Usage: deploy [options] [env] <command>
+  Usage: deploy [options] [env] [command]
 
   Options:
 
@@ -78,6 +78,10 @@ usage() {
     -y, --yes             accept all confirmation prompts (use with caution)
     -v, -V, --version     output current version
     -h, --help            output usage information
+
+  Default command:
+    <env> [options] [rev]       deploy a release (commit, branch or tag)
+                                (same as the "rev" command)
 
   Deployment commands:
 
@@ -99,6 +103,7 @@ usage() {
 
     deploy prod setup             run remote setup in the prod env
     deploy dev rev master         deploy the master branch in the dev env
+    deploy dev master             deploy the master branch in the dev env (shortcut)
     deploy prod exec pm2 status   run 'pm2 status' in the prod env
     deploy dev config user        get the value of the user key in the dev env
     deploy update                 update the deploy script
@@ -598,16 +603,16 @@ main() {
 
       *)
         if test -z "$DEPLOY_ENV"; then
-          DEPLOY_ENV=$arg;
+          DEPLOY_ENV=$arg
         else
-          abort "unknown command or option $arg"
+          deploy_rev $arg $@
+          exit
         fi
         ;;
     esac
   done
 
-  usage
-  abort "no command given"
+  deploy_rev $@
 }
 
 set_config_path() {

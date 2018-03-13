@@ -1,8 +1,9 @@
 # TODO
 
-* check required commands on server (at setup)
-* make rev the default command
 * do not run pre-deploy hooks for first deployment
+* check required commands on server (at setup)
+* check required variables for all commands (e.g. `path`)
+* add `-e|--environment` option to support environments named after a sub-command
 * add command line arguments for ssh options and others
 * fix inheritance (no duplicates)
 * add confirmation prompts
