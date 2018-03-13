@@ -1,6 +1,5 @@
 # TODO
 
-* add -y|--yes option
 * check required commands on server (at setup)
 * make rev the default command
 * do not run pre-deploy hooks for first deployment

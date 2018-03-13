@@ -342,9 +342,13 @@ Most of them have corresponding environment variables.
 
 * **`--config <path>`** (or the `$DEPLOY_CONFIG` variable) allows you to set a custom path for the configuration file (defaults to `./deploy.conf`).
 
-* **`--color always|never|auto`** (or the `$DEPLOY_COLOR` variable) enables/disables colors in the output of the script
+* **`--color always|never|auto`** (or the `$DEPLOY_COLOR` variable) enables/disables colors in the output of the script.
 
   This defaults to `auto`, which only enables colors if the current terminal is interactive.
+
+* **`--yes`** (or the `$DEPLOY_YES` variable) will automatically accept all confirmation prompts.
+
+  **Use with caution:** old releases may be deleted if a [`keep` option](#keep) is configured).
 
 ## Sub-commands
 
@@ -572,7 +576,8 @@ Old releases that will be kept will be shown in green.
 During deployment, the current release being deployed is also indicated in green
 (as it counts in the `keep` number).
 
-If there are any releases to delete, **deploy** will ask for confirmation.
+If there are any releases to delete, **deploy** will ask for confirmation
+(unless the `--yes` command line option or the `$DEPLOY_YES` variable is specified).
 
 Responding "no" interrupts the deployment and prints a help message explaining
 how to configure the `keep` number.

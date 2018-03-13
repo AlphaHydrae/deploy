@@ -73,8 +73,10 @@ usage() {
   Options:
 
     -C, --chdir <path>    change the working directory
+    --color <mode>        set color mode to "always", "never" or "auto" (defaults to "auto")
     -c, --config <path>   set config file path (defaults to ./deploy.conf)
-    -V, --version         output current version
+    -y, --yes             accept all confirmation prompts (use with caution)
+    -v, -V, --version     output current version
     -h, --help            output usage information
 
   Deployment commands:
@@ -569,15 +571,19 @@ main() {
       # * **`--help`** prints usage information and exits.
       -h|--help) usage; exit ;;
       # * **`--version`** prints the current version and exits.
-      -V|--version) echo $VERSION; exit ;;
+      -v|-V|--version) echo $VERSION; exit ;;
       # * **`--chdir <dir>`** (or the `$DEPLOY_CHDIR` variable) changes **deploy**'s working directory before loading the configuration file.
       -C|--chdir) cd "$1"; shift ;;
       # * **`--config <path>`** (or the `$DEPLOY_CONFIG` variable) allows you to set a custom path for the configuration file (defaults to `./deploy.conf`).
       -c|--config) set_config_path $1; shift ;;
-      # * **`--color always|never|auto`** (or the `$DEPLOY_COLOR` variable) enables/disables colors in the output of the script
+      # * **`--color always|never|auto`** (or the `$DEPLOY_COLOR` variable) enables/disables colors in the output of the script.
       #
       #   This defaults to `auto`, which only enables colors if the current terminal is interactive.
       --color) DEPLOY_COLOR=$1; shift ;;
+      # * **`--yes`** (or the `$DEPLOY_YES` variable) will automatically accept all confirmation prompts.
+      #
+      #   **Use with caution:** old releases may be deleted if a [`keep` option](#keep) is configured).
+      -y|--yes) DEPLOY_YES=1 ;;
 
       exec) exec_remote_command $@; exit ;;
       cleanup) cleanup $@; exit ;;
@@ -721,6 +727,7 @@ deploy_rev() {
     case $arg in
       -f|--force) DEPLOY_FORCE=1 ;;
       -k|--keep) DEPLOY_KEEP="$1"; shift ;;
+      -y|--yes) DEPLOY_YES=1 ;;
       *)
         if test -z "$rev"; then
           rev="$arg"
@@ -927,6 +934,7 @@ cleanup() {
     arg=$1; shift
     case $arg in
       -k|--keep) DEPLOY_KEEP="$1"; shift ;;
+      -y|--yes) DEPLOY_YES=1 ;;
       *) abort "unknown command or option $arg" ;;
     esac
   done
@@ -944,6 +952,7 @@ cleanup() {
     echo
   else
     delete_old_releases
+    echo
   fi
 }
 
@@ -1162,8 +1171,9 @@ prepare_to_delete_old_releases() {
     log_color $COLOR_GREEN "$path/releases/$release (current)"
   fi
 
-  # If there are any releases to delete, **deploy** will ask for confirmation.
-  if test -n "$releases_to_delete"; then
+  # If there are any releases to delete, **deploy** will ask for confirmation
+  # (unless the `--yes` command line option or the `$DEPLOY_YES` variable is specified).
+  if test -n "$releases_to_delete" && test -z "$DEPLOY_YES"; then
     echo
 
     local number_of_releases_to_delete="$(echo "$releases_to_delete"|wc -l)"
@@ -1199,6 +1209,8 @@ delete_old_releases() {
 
   log deleting old releases
 
+  local path=$(get_last_config_key_value path)
+
   local old_ifs=$IFS
   IFS=$'\n'
 
@@ -1218,6 +1230,8 @@ delete_old_releases() {
   local number_of_releases_to_delete="$(echo "$releases_to_delete"|wc -l)"
   local message="$number_of_releases_to_delete old release"
   test "$number_of_releases_to_delete" -ne 1 && message="${message}s"
+
+  echo
   log_success "$message deleted"
 }
 
