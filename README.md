@@ -332,23 +332,54 @@ deploy --version
 deploy --config foo.conf production setup
 ```
 
-Most of them have corresponding environment variables.
+Most of them have corresponding configuration file options and environment variables,
+but values given as command line options always take precedence.
 
 * **`--help`** prints usage information and exits.
 
-* **`--version`** prints the current version and exits.
+* **`-v, -V, --version`** prints the current version and exits.
 
-* **`--chdir <dir>`** (or the `$DEPLOY_CHDIR` variable) changes **deploy**'s working directory before loading the configuration file.
+* **`-A, --forward-agent`** (or the `$DEPLOY_FORWARD_AGENT` variable) enables forwarding of the authentication agent connection.
 
-* **`--config <path>`** (or the `$DEPLOY_CONFIG` variable) allows you to set a custom path for the configuration file (defaults to `./deploy.conf`).
+  **Use with caution.**
+  Users with the ability to bypass file permissions on the remote host (for the agent's UNIX-domain socket)
+  can access the local agent through the forwarded connection.
+  An attacker cannot obtain key material from the agent,
+  however they can perform operations on the keys that enable them to authenticate
+  using the identities loaded into the agent.
+
+* **`-C, --chdir <dir>`** (or the `$DEPLOY_CHDIR` variable) changes **deploy**'s *local* working directory before loading the configuration file.
+
+* **`-c, --config <path>`** (or the `$DEPLOY_CONFIG` variable) allows you to set a custom path for the configuration file (defaults to `./deploy.conf`).
 
 * **`--color always|never|auto`** (or the `$DEPLOY_COLOR` variable) enables/disables colors in the output of the script.
 
   This defaults to `auto`, which only enables colors if the current terminal is interactive.
 
-* **`--yes`** (or the `$DEPLOY_YES` variable) will automatically accept all confirmation prompts.
+* **`-H, --host <address>`** (or the `$DEPLOY_HOST` variable) sets the host to connect to.
 
-  **Use with caution:** old releases may be deleted if a [`keep` option](#keep) is configured).
+* **`-i, --identity <file>`** (or the `$DEPLOY_IDENTITY` variable) selects a file from which the identity (private key)
+  for public key authentication is read.
+
+  The default is `~/.ssh/id_dsa`, `~/.ssh/id_ecdsa`, `~/.ssh/id_ed25519` and `~/.ssh/id_rsa`.
+
+* **`-P, --path <dir>`** sets the remote path to deploy the project to on the server
+  (this is the path to the directory managed by **deploy**, not to the current release).
+
+* **`-p, --port <n>`** (or the `$DEPLOY_PORT` variable) sets the port to connect to.
+
+* **`-r, --repo <url>`** (or the `$DEPLOY_REPO` variable) sets the Git URL to fetch the project's source code from when deploying.
+
+* **`-t, --tty`** (or the `$DEPLOY_TTY` variable) forces pseudo-terminal allocation.
+
+  This can be used to execute arbitrary screen-based programs on a remote machine,
+  which can be very useful, e.g. when implementing menu services.
+
+* **`-u, --user <name>`** (or the `$DEPLOY_USER` variable) sets the remote user to connect as.
+
+* **`-y, --yes`** (or the `$DEPLOY_YES` variable) will automatically accept all confirmation prompts.
+
+  **Use with caution:** old releases may be deleted if a [`keep` option](#keep) is configured.
 
 ## Sub-commands
 

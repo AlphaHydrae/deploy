@@ -1,10 +1,11 @@
 # TODO
 
+* parse options & arguments in all commands (to avoid ignoring unknown stuff)
 * do not run pre-deploy hooks for first deployment
 * check required commands on server (at setup)
 * check required variables for all commands (e.g. `path`)
 * add `-e|--environment` option to support environments named after a sub-command
-* add command line arguments for ssh options and others
+* `setup` and `rev` should update the git clone url if it changed
 * fix inheritance (no duplicates)
 * add confirmation prompts
 * verbosity (simple commands, full commands)
