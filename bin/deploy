@@ -483,16 +483,14 @@ build_ssh_command() {
   echo "ssh $tty $forward_agent $port $identity $url"
 }
 
-# All commands executed on the host through SSH will be logged to the console.
+# Commands executed on the host through SSH will be logged to the console.
 run() {
-  local shell
-  shell="$(build_ssh_command 2>&1)"
-  test $? -eq 0 || abort "$shell"
   log_command "$@"
-  $shell $@
+  run_no_log "$@"
 }
 
-run_silent() {
+# For some commands, the output may be retrieved and displayed in a more user-friendly manner.
+run_no_log() {
   local shell
   shell="$(build_ssh_command 2>&1)"
   test $? -eq 0 || abort "$shell"
@@ -982,7 +980,7 @@ list_releases() {
   log_command "$list_releases_command"
 
   local releases_list
-  releases_list="$(run_silent "$list_releases_command")"
+  releases_list="$(run_no_log "$list_releases_command")"
   test $? -eq 0 || abort "could not list releases directory $releases_path; make sure it exists and is readable"
 
   if test -z "$releases_list"; then
@@ -997,7 +995,7 @@ list_releases() {
   log_command "$check_current_command"
 
   local current_release_dir
-  current_release_dir="$(run_silent "$check_current_command")"
+  current_release_dir="$(run_no_log "$check_current_command")"
 
   echo
   for release in $releases_list; do
@@ -1116,7 +1114,10 @@ prepare_to_delete_old_releases() {
   local list_releases_command="ls -1 $path/releases"
 
   log_command "$list_releases_command"
-  local releases_list="$(run_silent "$list_releases_command")"
+  local releases_list
+  releases_list="$(run_no_log "$list_releases_command 2>&1")"
+  test $? -eq 0 || abort "$releases_list"
+
   local number_of_releases="$(echo "$releases_list"|wc -l)"
 
   # If no old release is found, deployment will proceed normally.

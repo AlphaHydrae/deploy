@@ -290,7 +290,9 @@ Various SSH options can be specified through the configuration file or environme
 
 * **`tty yes`** (or the `$DEPLOY_TTY` variable) forces pseudo-terminal allocation.
 
-All commands executed on the host through SSH will be logged to the console.
+Commands executed on the host through SSH will be logged to the console.
+
+For some commands, the output may be retrieved and displayed in a more user-friendly manner.
 
 ### Environment variables
 
