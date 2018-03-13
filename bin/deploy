@@ -1131,7 +1131,7 @@ prepare_to_delete_old_releases() {
   # If the number of old releases is equal to or greater than the `keep` number,
   # **deploy** will print the list of releases that will be deleted in red.
   local releases_to_keep=
-  if [[ "$command" == "deploy" ]] && test "$number_of_releases" -lt "$keep" || test "$number_of_releases" -le "$keep"; then
+  if { [[ "$command" == "deploy" ]] && test "$number_of_releases" -lt "$keep"; } || { [[ "$command" != "deploy" ]] && test "$number_of_releases" -le "$keep"; }; then
     releases_to_keep="$releases_list"
   else
 
