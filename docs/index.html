@@ -2180,7 +2180,7 @@ how to configure the <code>keep</code> number.</p>
         <span class="hljs-built_in">echo</span> <span class="hljs-string">"Use the \"keep\" configuration file option, the -k|--keep command line option"</span>
         <span class="hljs-built_in">echo</span> <span class="hljs-string">"or the \$DEPLOY_KEEP variable to change the number of old releases that are kept"</span>
         <span class="hljs-built_in">echo</span> <span class="hljs-string">"(use the value \"all\" to keep all releases forever)."</span>
-        abort <span class="hljs-string">"deployment interrupted"</span>
+        abort <span class="hljs-string">"<span class="hljs-variable">$command</span> interrupted"</span>
       <span class="hljs-keyword">elif</span> ! [[ <span class="hljs-string">"<span class="hljs-variable">$delete_releases</span>"</span> =~ ^(1|y|yes|t|<span class="hljs-literal">true</span>)$ ]]; <span class="hljs-keyword">then</span>
         delete_releases=
       <span class="hljs-keyword">fi</span>

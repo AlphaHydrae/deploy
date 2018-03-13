@@ -1140,7 +1140,7 @@ prepare_to_delete_old_releases() {
         echo "Use the \"keep\" configuration file option, the -k|--keep command line option"
         echo "or the \$DEPLOY_KEEP variable to change the number of old releases that are kept"
         echo "(use the value \"all\" to keep all releases forever)."
-        abort "deployment interrupted"
+        abort "$command interrupted"
       elif ! [[ "$delete_releases" =~ ^(1|y|yes|t|true)$ ]]; then
         delete_releases=
       fi
