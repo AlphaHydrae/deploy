@@ -9,7 +9,8 @@
 * fix inheritance (no duplicates)
 * add confirmation prompts
 * verbosity (simple commands, full commands)
-* npm-like Scripts
+* command line options to add hooks
+* npm-like Scripts (also usable as hooks)
 * make configuration file optional
 * support a symlink for the configuration file
 * create a deployment log (include commit)
