@@ -73,7 +73,27 @@ DEPLOY_COLOR=auto
 DEPLOY_CONFIG=./deploy.conf
 DEPLOY_UPDATE_PREFIX=/usr/<span class="hljs-built_in">local</span>
 DEPLOY_UPDATE_REPO=https://github.com/AlphaHydrae/deploy.git
-DEPLOY_UPDATE_REV=master</pre></div></div>
+DEPLOY_UPDATE_REV=master
+
+DEPLOY_SHORT_OPTIONS_MAP=$(cat &lt;&lt;-END
+A:forward-agent
+C:<span class="hljs-built_in">chdir</span>
+c:config
+f:force
+h:<span class="hljs-built_in">help</span>
+H:host
+i:identity
+k:keep
+P:path
+p:port
+r:repo
+t:tty
+u:user
+V:version
+v:version
+y:yes
+END
+)</pre></div></div>
             
         </li>
         
@@ -124,6 +144,26 @@ deploy production rev master
 
   Usage: deploy [options] [env] [<span class="hljs-built_in">command</span>]
 
+  Default <span class="hljs-built_in">command</span>:
+    &lt;env&gt; [options] [rev]   deploy a release (commit, branch or tag)
+                            (same as the <span class="hljs-string">"rev"</span> <span class="hljs-built_in">command</span>)
+
+  Deployment commands:
+
+    &lt;env&gt; setup                 run host setup commands
+    &lt;env&gt; rev [options] [rev]   deploy a release (commit, branch or tag)
+    &lt;env&gt; console [path]        open an ssh session to the host
+    &lt;env&gt; <span class="hljs-built_in">exec</span> &lt;cmd&gt;            execute the given <span class="hljs-built_in">command</span> on the host
+    &lt;env&gt; list                  list deployed releases
+    &lt;env&gt; cleanup [options]     clean up old releases
+
+  Local commands:
+
+    [env] config [key]       output whole config file or the value of one key
+    &lt;env&gt; config-all &lt;key&gt;   output all values of a config key <span class="hljs-keyword">in</span> an environment
+    [env] config-section     output a config section
+    update [options] [rev]   update this script to the latest version
+
   General options:
 
     -C, --<span class="hljs-built_in">chdir</span> &lt;path&gt;    change the working directory
@@ -147,25 +187,12 @@ deploy production rev master
     -t, --tty               force pseudo-terminal allocation
     -u, --user &lt;name&gt;       <span class="hljs-built_in">set</span> the host user to connect as
 
-  Default <span class="hljs-built_in">command</span>:
-    &lt;env&gt; [options] [rev]   deploy a release (commit, branch or tag)
-                            (same as the <span class="hljs-string">"rev"</span> <span class="hljs-built_in">command</span>)
+  Self-update options:
 
-  Deployment commands:
-
-    &lt;env&gt; setup                 run host setup commands
-    &lt;env&gt; rev [options] [rev]   deploy a release (commit, branch or tag)
-    &lt;env&gt; console [path]        open an ssh session to the host
-    &lt;env&gt; <span class="hljs-built_in">exec</span> &lt;cmd&gt;            execute the given <span class="hljs-built_in">command</span> on the host
-    &lt;env&gt; list                  list deployed releases
-    &lt;env&gt; cleanup [options]     clean up old releases
-
-  Local commands:
-
-    [env] config [key]       output whole config file or the value of one key
-    &lt;env&gt; config-all &lt;key&gt;   output all values of a config key <span class="hljs-keyword">in</span> an environment
-    [env] config-section     output a config section
-    update [options] [rev]   update this script to the latest version
+    --update-prefix &lt;dir&gt;   <span class="hljs-built_in">set</span> the base directory to update the deploy script
+                            (full path will be &lt;dir&gt;/bin/deploy)
+    --update-path &lt;file&gt;    <span class="hljs-built_in">set</span> the full path to the deploy script
+                            (overrides --update-prefix)
 
   Examples:
 
@@ -957,9 +984,17 @@ This can be handy to create local variables that you can forward to the host.</p
             </div>
             
             <div class="content"><div class='highlight'><pre><span class="hljs-function"><span class="hljs-title">parse_script_options</span></span>() {
-  <span class="hljs-keyword">while</span> script_has_options; <span class="hljs-keyword">do</span>
-    <span class="hljs-built_in">local</span> option=<span class="hljs-string">"<span class="hljs-variable">$(script_arg)</span>"</span>
-    <span class="hljs-built_in">local</span> value=<span class="hljs-string">"<span class="hljs-variable">$(script_arg 1)</span>"</span>
+  <span class="hljs-built_in">local</span> i=0
+  <span class="hljs-keyword">while</span> <span class="hljs-built_in">test</span> <span class="hljs-variable">$i</span> -lt <span class="hljs-string">"<span class="hljs-variable">$(script_arg_count)</span>"</span>; <span class="hljs-keyword">do</span>
+
+    <span class="hljs-built_in">local</span> option=<span class="hljs-string">"<span class="hljs-variable">$(script_arg $i)</span>"</span>
+    <span class="hljs-keyword">if</span> [[ <span class="hljs-string">"<span class="hljs-variable">$option</span>"</span> != -* ]]; <span class="hljs-keyword">then</span>
+      ((i++))
+      <span class="hljs-built_in">continue</span>
+    <span class="hljs-keyword">fi</span>
+
+    <span class="hljs-built_in">local</span> value=<span class="hljs-string">"<span class="hljs-variable">$(script_arg $((i+1)</span>))"</span>
+
     <span class="hljs-keyword">case</span> <span class="hljs-variable">$option</span> <span class="hljs-keyword">in</span></pre></div></div>
             
         </li>
@@ -991,7 +1026,7 @@ This can be handy to create local variables that you can forward to the host.</p
 
             </div>
             
-            <div class="content"><div class='highlight'><pre>      -C|--<span class="hljs-built_in">chdir</span>) set_working_directory <span class="hljs-string">"<span class="hljs-variable">$value</span>"</span>; script_shift 2 ;;</pre></div></div>
+            <div class="content"><div class='highlight'><pre>      -C|--<span class="hljs-built_in">chdir</span>) set_working_directory <span class="hljs-string">"<span class="hljs-variable">$value</span>"</span>; script_remove_args <span class="hljs-variable">$i</span> 2 ;;</pre></div></div>
             
         </li>
         
@@ -1010,7 +1045,7 @@ This can be handy to create local variables that you can forward to the host.</p
 
             </div>
             
-            <div class="content"><div class='highlight'><pre>      --color) DEPLOY_COLOR=<span class="hljs-string">"<span class="hljs-variable">$value</span>"</span>; script_shift 2 ;;</pre></div></div>
+            <div class="content"><div class='highlight'><pre>      --color) DEPLOY_COLOR=<span class="hljs-string">"<span class="hljs-variable">$value</span>"</span>; script_remove_args <span class="hljs-variable">$i</span> 2 ;;</pre></div></div>
             
         </li>
         
@@ -1027,7 +1062,7 @@ This can be handy to create local variables that you can forward to the host.</p
 
             </div>
             
-            <div class="content"><div class='highlight'><pre>      -c|--config) set_config_path <span class="hljs-string">"<span class="hljs-variable">$value</span>"</span>; script_shift 2 ;;</pre></div></div>
+            <div class="content"><div class='highlight'><pre>      -c|--config) set_config_path <span class="hljs-string">"<span class="hljs-variable">$value</span>"</span>; script_remove_args <span class="hljs-variable">$i</span> 2 ;;</pre></div></div>
             
         </li>
         
@@ -1081,7 +1116,7 @@ This can be handy to create local variables that you can forward to the host.</p
 
             </div>
             
-            <div class="content"><div class='highlight'><pre>      -y|--yes) DEPLOY_YES=1; script_shift ;;</pre></div></div>
+            <div class="content"><div class='highlight'><pre>      -y|--yes) DEPLOY_YES=1; script_remove_args <span class="hljs-variable">$i</span> ;;</pre></div></div>
             
         </li>
         
@@ -1112,7 +1147,7 @@ This can be handy to create local variables that you can forward to the host.</p
 
             </div>
             
-            <div class="content"><div class='highlight'><pre>      -r|--repo) DEPLOY_REPO=<span class="hljs-string">"<span class="hljs-variable">$value</span>"</span>; script_shift 2 ;;</pre></div></div>
+            <div class="content"><div class='highlight'><pre>      -r|--repo) DEPLOY_REPO=<span class="hljs-string">"<span class="hljs-variable">$value</span>"</span>; script_remove_args <span class="hljs-variable">$i</span> 2 ;;</pre></div></div>
             
         </li>
         
@@ -1130,7 +1165,7 @@ This can be handy to create local variables that you can forward to the host.</p
 
             </div>
             
-            <div class="content"><div class='highlight'><pre>      -P|--path) DEPLOY_PATH=<span class="hljs-string">"<span class="hljs-variable">$value</span>"</span>; script_shift 2 ;;</pre></div></div>
+            <div class="content"><div class='highlight'><pre>      -P|--path) DEPLOY_PATH=<span class="hljs-string">"<span class="hljs-variable">$value</span>"</span>; script_remove_args <span class="hljs-variable">$i</span> 2 ;;</pre></div></div>
             
         </li>
         
@@ -1148,7 +1183,7 @@ after successful deployment (see the <a href="#keep"><code>keep</code> option</a
 
             </div>
             
-            <div class="content"><div class='highlight'><pre>      -k|--keep) DEPLOY_KEEP=<span class="hljs-string">"<span class="hljs-variable">$value</span>"</span>; script_shift 2 ;;</pre></div></div>
+            <div class="content"><div class='highlight'><pre>      -k|--keep) DEPLOY_KEEP=<span class="hljs-string">"<span class="hljs-variable">$value</span>"</span>; script_remove_args <span class="hljs-variable">$i</span> 2 ;;</pre></div></div>
             
         </li>
         
@@ -1165,7 +1200,7 @@ after successful deployment (see the <a href="#keep"><code>keep</code> option</a
 
             </div>
             
-            <div class="content"><div class='highlight'><pre>      -f|--force) DEPLOY_FORCE=1; script_shift ;;</pre></div></div>
+            <div class="content"><div class='highlight'><pre>      -f|--force) DEPLOY_FORCE=1; script_remove_args <span class="hljs-variable">$i</span> ;;</pre></div></div>
             
         </li>
         
@@ -1204,7 +1239,7 @@ using the identities loaded into the agent.</p>
 
             </div>
             
-            <div class="content"><div class='highlight'><pre>      -A|--forward-agent) DEPLOY_FORWARD_AGENT=1; script_shift ;;</pre></div></div>
+            <div class="content"><div class='highlight'><pre>      -A|--forward-agent) DEPLOY_FORWARD_AGENT=1; script_remove_args <span class="hljs-variable">$i</span> ;;</pre></div></div>
             
         </li>
         
@@ -1221,7 +1256,7 @@ using the identities loaded into the agent.</p>
 
             </div>
             
-            <div class="content"><div class='highlight'><pre>      -H|--host) DEPLOY_HOST=<span class="hljs-string">"<span class="hljs-variable">$value</span>"</span>; script_shift 2 ;;</pre></div></div>
+            <div class="content"><div class='highlight'><pre>      -H|--host) DEPLOY_HOST=<span class="hljs-string">"<span class="hljs-variable">$value</span>"</span>; script_remove_args <span class="hljs-variable">$i</span> 2 ;;</pre></div></div>
             
         </li>
         
@@ -1241,7 +1276,7 @@ for public key authentication is read.</p>
 
             </div>
             
-            <div class="content"><div class='highlight'><pre>      -i|--identity) DEPLOY_IDENTITY=<span class="hljs-string">"<span class="hljs-variable">$value</span>"</span>; script_shift 2 ;;</pre></div></div>
+            <div class="content"><div class='highlight'><pre>      -i|--identity) DEPLOY_IDENTITY=<span class="hljs-string">"<span class="hljs-variable">$value</span>"</span>; script_remove_args <span class="hljs-variable">$i</span> 2 ;;</pre></div></div>
             
         </li>
         
@@ -1258,7 +1293,7 @@ for public key authentication is read.</p>
 
             </div>
             
-            <div class="content"><div class='highlight'><pre>      -p|--port) DEPLOY_PORT=<span class="hljs-string">"<span class="hljs-variable">$value</span>"</span>; script_shift 2 ;;</pre></div></div>
+            <div class="content"><div class='highlight'><pre>      -p|--port) DEPLOY_PORT=<span class="hljs-string">"<span class="hljs-variable">$value</span>"</span>; script_remove_args <span class="hljs-variable">$i</span> 2 ;;</pre></div></div>
             
         </li>
         
@@ -1278,7 +1313,7 @@ which can be very useful, e.g. when implementing menu services.</p>
 
             </div>
             
-            <div class="content"><div class='highlight'><pre>      -t|--tty) DEPLOY_TTY=1; script_shift ;;</pre></div></div>
+            <div class="content"><div class='highlight'><pre>      -t|--tty) DEPLOY_TTY=1; script_remove_args <span class="hljs-variable">$i</span> ;;</pre></div></div>
             
         </li>
         
@@ -1295,7 +1330,7 @@ which can be very useful, e.g. when implementing menu services.</p>
 
             </div>
             
-            <div class="content"><div class='highlight'><pre>      -u|--user) DEPLOY_USER=<span class="hljs-string">"<span class="hljs-variable">$value</span>"</span>; script_shift 2 ;;</pre></div></div>
+            <div class="content"><div class='highlight'><pre>      -u|--user) DEPLOY_USER=<span class="hljs-string">"<span class="hljs-variable">$value</span>"</span>; script_remove_args <span class="hljs-variable">$i</span> 2 ;;</pre></div></div>
             
         </li>
         
@@ -1328,7 +1363,7 @@ which can be very useful, e.g. when implementing menu services.</p>
 
             </div>
             
-            <div class="content"><div class='highlight'><pre>      --update-path) DEPLOY_UPDATE_PATH=<span class="hljs-string">"<span class="hljs-variable">$value</span>"</span>; script_shift 2 ;;</pre></div></div>
+            <div class="content"><div class='highlight'><pre>      --update-path) DEPLOY_UPDATE_PATH=<span class="hljs-string">"<span class="hljs-variable">$value</span>"</span>; script_remove_args <span class="hljs-variable">$i</span> 2 ;;</pre></div></div>
             
         </li>
         
@@ -1348,12 +1383,15 @@ which can be very useful, e.g. when implementing menu services.</p>
 
             </div>
             
-            <div class="content"><div class='highlight'><pre>      --update-prefix) DEPLOY_UPDATE_PREFIX=<span class="hljs-string">"<span class="hljs-variable">$value</span>"</span>; script_shift 2 ;;
+            <div class="content"><div class='highlight'><pre>      --update-prefix) DEPLOY_UPDATE_PREFIX=<span class="hljs-string">"<span class="hljs-variable">$value</span>"</span>; script_remove_args <span class="hljs-variable">$i</span> 2 ;;
 
       *) usage; abort <span class="hljs-string">"unknown option '<span class="hljs-variable">$option</span>'"</span>
     <span class="hljs-keyword">esac</span>
 
-    DEPLOY_OPTIONS+=(<span class="hljs-string">"<span class="hljs-variable">$option</span>"</span>)
+    <span class="hljs-built_in">local</span> long_option=<span class="hljs-string">"<span class="hljs-variable">$(get_long_option "$option")</span>"</span>
+    script_has_option <span class="hljs-string">"<span class="hljs-variable">$long_option</span>"</span> &amp;&amp; abort <span class="hljs-string">"option <span class="hljs-variable">$(describe_option "$long_option")</span> must only be given once"</span>
+
+    DEPLOY_OPTIONS+=(<span class="hljs-string">"<span class="hljs-variable">$long_option</span>"</span>)
   <span class="hljs-keyword">done</span>
 }</pre></div></div>
             
@@ -1377,12 +1415,12 @@ The following 3 commands are equivalent:</p>
             </div>
             
             <div class="content"><div class='highlight'><pre><span class="hljs-function"><span class="hljs-title">main</span></span>() {
-  <span class="hljs-built_in">test</span> -n <span class="hljs-string">"<span class="hljs-variable">$DEPLOY_CHDIR</span>"</span> &amp;&amp; change_working_directory <span class="hljs-string">"<span class="hljs-variable">$DEPLOY_CHDIR</span>"</span>
   load_env_file
   parse_script_options
+  <span class="hljs-built_in">test</span> -n <span class="hljs-string">"<span class="hljs-variable">$DEPLOY_CHDIR</span>"</span> &amp;&amp; change_working_directory <span class="hljs-string">"<span class="hljs-variable">$DEPLOY_CHDIR</span>"</span>
 
   <span class="hljs-built_in">local</span> subcommand=
-  <span class="hljs-keyword">while</span> script_has_args; <span class="hljs-keyword">do</span>
+  <span class="hljs-keyword">while</span> <span class="hljs-built_in">test</span> -z <span class="hljs-string">"<span class="hljs-variable">$subcommand</span>"</span>; <span class="hljs-keyword">do</span>
     DEPLOY_COMMAND=<span class="hljs-string">"<span class="hljs-variable">$(script_arg)</span>"</span>
     <span class="hljs-keyword">case</span> <span class="hljs-string">"<span class="hljs-variable">$DEPLOY_COMMAND</span>"</span> <span class="hljs-keyword">in</span>
       <span class="hljs-built_in">exec</span>) subcommand=exec_remote_command ;;
@@ -1404,7 +1442,6 @@ The following 3 commands are equivalent:</p>
         ;;
     <span class="hljs-keyword">esac</span>
     script_shift
-    <span class="hljs-built_in">test</span> -n <span class="hljs-string">"<span class="hljs-variable">$subcommand</span>"</span> &amp;&amp; <span class="hljs-built_in">break</span>
   <span class="hljs-keyword">done</span></pre></div></div>
             
         </li>
@@ -1437,7 +1474,6 @@ it is also the <strong>default command</strong>. The following 2 commands are eq
     DEPLOY_COMMAND=rev
   <span class="hljs-keyword">fi</span>
 
-  parse_script_options
   <span class="hljs-variable">$subcommand</span>
 }
 
@@ -1548,7 +1584,7 @@ Note that this directory <strong>must already exist</strong> on the host and be 
             <div class="content"><div class='highlight'><pre><span class="hljs-function"><span class="hljs-title">set_up_host</span></span>() {
   require_env
   require_no_args
-  whitelist_deploy_options -r --repo
+  whitelist_deploy_options repo
 
   <span class="hljs-built_in">local</span> host=<span class="hljs-string">"<span class="hljs-variable">$(get_last_config_key_value host)</span>"</span>
   <span class="hljs-built_in">local</span> path=<span class="hljs-string">"<span class="hljs-variable">$(get_last_config_key_value path)</span>"</span>
@@ -1683,13 +1719,13 @@ either as the <code>[rev]</code> argument, with the <code>rev</code> config key 
             <div class="content"><div class='highlight'><pre>  <span class="hljs-built_in">local</span> rev=<span class="hljs-string">"<span class="hljs-variable">$(get_last_config_key_value rev)</span>"</span>
   <span class="hljs-keyword">if</span> script_has_args; <span class="hljs-keyword">then</span>
     rev=<span class="hljs-string">"<span class="hljs-variable">$(script_arg)</span>"</span>
-    script_shift_and_parse_options
+    script_shift
   <span class="hljs-keyword">fi</span>
 
   <span class="hljs-built_in">test</span> -n <span class="hljs-string">"<span class="hljs-variable">$rev</span>"</span> || abort <span class="hljs-string">"no commit, branch or tag specified"</span>
 
   require_no_args
-  whitelist_deploy_options -f --force -k --keep -y --yes</pre></div></div>
+  whitelist_deploy_options force keep yes</pre></div></div>
             
         </li>
         
@@ -1988,7 +2024,7 @@ root
             <div class="content"><div class='highlight'><pre>  <span class="hljs-keyword">else</span>
 
     <span class="hljs-built_in">local</span> key=<span class="hljs-string">"<span class="hljs-variable">$(script_arg)</span>"</span>
-    script_shift_and_parse_options
+    script_shift
     require_env
     require_no_args
     whitelist_default_options
@@ -2022,7 +2058,7 @@ root
   require_env
 
   <span class="hljs-built_in">local</span> key=<span class="hljs-string">"<span class="hljs-variable">$(script_arg)</span>"</span>
-  script_shift_and_parse_options
+  script_shift
   require_no_args
   whitelist_default_options
 
@@ -2090,7 +2126,7 @@ If no environment is specified, the default config section is printed.</p>
             </div>
             
             <div class="content"><div class='highlight'><pre>  <span class="hljs-built_in">local</span> path=<span class="hljs-string">"<span class="hljs-variable">$(script_arg)</span>"</span>
-  script_shift_and_parse_options
+  script_shift
   require_no_args
   whitelist_deploy_options</pre></div></div>
             
@@ -2177,7 +2213,7 @@ the <code>$DEPLOY_KEEP</code> variable or the <code>-k|--keep</code> command lin
             <div class="content"><div class='highlight'><pre><span class="hljs-function"><span class="hljs-title">clean_up_old_releases</span></span>() {
   require_env
   require_no_args
-  whitelist_deploy_options -k --keep -y --yes
+  whitelist_deploy_options keep yes
 
   <span class="hljs-built_in">local</span> keep=$(get_last_config_key_value keep)
 
@@ -2322,7 +2358,7 @@ the <code>$DEPLOY_KEEP</code> variable or the <code>-k|--keep</code> command lin
 
   <span class="hljs-built_in">test</span> -z <span class="hljs-string">"<span class="hljs-variable">$DEPLOY_ENV</span>"</span> || abort <span class="hljs-string">"environment not supported for this command"</span>
   require_no_args
-  whitelist_options --color --update-path --update-prefix -y --yes</pre></div></div>
+  whitelist_options color update-path update-prefix yes</pre></div></div>
             
         </li>
         
@@ -2909,8 +2945,14 @@ deleting all appropriate old release directories in one go.</p>
   <span class="hljs-built_in">test</span> <span class="hljs-variable">${#DEPLOY_ARGS[@]}</span> -gt 0
 }
 
-<span class="hljs-function"><span class="hljs-title">script_has_options</span></span>() {
-  script_has_args &amp;&amp; [[ <span class="hljs-string">"<span class="hljs-variable">${DEPLOY_ARGS[0]}</span>"</span> == -* ]]
+<span class="hljs-function"><span class="hljs-title">script_has_option</span></span>() {
+  <span class="hljs-built_in">local</span> option=<span class="hljs-string">"<span class="hljs-variable">$1</span>"</span>
+  <span class="hljs-keyword">for</span> actual_option <span class="hljs-keyword">in</span> <span class="hljs-string">"<span class="hljs-variable">${DEPLOY_OPTIONS[@]}</span>"</span>; <span class="hljs-keyword">do</span>
+    <span class="hljs-keyword">if</span> [[ <span class="hljs-string">"<span class="hljs-variable">$option</span>"</span> == <span class="hljs-string">"<span class="hljs-variable">$actual_option</span>"</span> ]]; <span class="hljs-keyword">then</span>
+      <span class="hljs-built_in">return</span> 0
+    <span class="hljs-keyword">fi</span>
+  <span class="hljs-keyword">done</span>
+  <span class="hljs-built_in">return</span> 1
 }
 
 <span class="hljs-function"><span class="hljs-title">script_shift</span></span>() {
@@ -2919,14 +2961,33 @@ deleting all appropriate old release directories in one go.</p>
   DEPLOY_ARGS=(<span class="hljs-string">"<span class="hljs-variable">${DEPLOY_ARGS[@]:$by}</span>"</span>)
 }
 
-<span class="hljs-function"><span class="hljs-title">script_shift_and_parse_options</span></span>() {
-  script_shift <span class="hljs-string">"<span class="hljs-variable">$1</span>"</span>
-  parse_script_options
+<span class="hljs-function"><span class="hljs-title">script_remove_args</span></span>() {
+
+  <span class="hljs-built_in">local</span> slice_index=<span class="hljs-string">"<span class="hljs-variable">$1</span>"</span>
+  <span class="hljs-built_in">local</span> slice_length=<span class="hljs-string">"<span class="hljs-variable">$2</span>"</span>
+  <span class="hljs-built_in">test</span> -z <span class="hljs-string">"<span class="hljs-variable">$slice_length</span>"</span> &amp;&amp; slice_length=1
+
+  <span class="hljs-built_in">local</span> arg_count=<span class="hljs-string">"<span class="hljs-variable">${#DEPLOY_ARGS[@]}</span>"</span>
+  <span class="hljs-built_in">local</span> rest_index=$((slice_index+slice_length))
+  <span class="hljs-built_in">local</span> rest_length=$((arg_count-rest_index))
+
+  DEPLOY_ARGS=(<span class="hljs-string">"<span class="hljs-variable">${DEPLOY_ARGS[@]:0:$slice_index}</span>"</span> <span class="hljs-string">"<span class="hljs-variable">${DEPLOY_ARGS[@]:$rest_index:$rest_length}</span>"</span>)
 }
 
-<span class="hljs-function"><span class="hljs-title">script_unshift</span></span>() {
-  <span class="hljs-built_in">local</span> value=<span class="hljs-string">"<span class="hljs-variable">$1</span>"</span>
-  DEPLOY_ARGS=(<span class="hljs-string">"<span class="hljs-variable">$value</span>"</span> <span class="hljs-string">"<span class="hljs-variable">${DEPLOY_ARGS[@]}</span>"</span>)
+<span class="hljs-function"><span class="hljs-title">get_long_option</span></span>() {
+  <span class="hljs-built_in">local</span> option=<span class="hljs-string">"<span class="hljs-variable">$1</span>"</span>
+  <span class="hljs-keyword">if</span> [[ <span class="hljs-string">"<span class="hljs-variable">$option</span>"</span> =~ ^-[A-Za-z]$ ]]; <span class="hljs-keyword">then</span>
+    <span class="hljs-built_in">local</span> letter=<span class="hljs-string">"<span class="hljs-variable">$(echo "$option"|sed 's/^-//')</span>"</span>
+    <span class="hljs-built_in">echo</span> <span class="hljs-string">"<span class="hljs-variable">$DEPLOY_SHORT_OPTIONS_MAP</span>"</span>|grep <span class="hljs-string">"^<span class="hljs-variable">${letter}</span>:"</span>|sed <span class="hljs-string">'s/^.*://'</span>
+  <span class="hljs-keyword">else</span>
+    <span class="hljs-built_in">echo</span> <span class="hljs-string">"<span class="hljs-variable">$option</span>"</span>|sed <span class="hljs-string">'s/^-*//'</span>
+  <span class="hljs-keyword">fi</span>
+}
+
+<span class="hljs-function"><span class="hljs-title">describe_option</span></span>() {
+  <span class="hljs-built_in">local</span> option=<span class="hljs-string">"<span class="hljs-variable">$1</span>"</span>
+  <span class="hljs-built_in">local</span> short_option=<span class="hljs-string">"<span class="hljs-variable">$(echo "$DEPLOY_SHORT_OPTIONS_MAP"|grep ":${option}$"|sed 's/:.*$//')</span>"</span>
+  <span class="hljs-built_in">test</span> -z <span class="hljs-string">"<span class="hljs-variable">$short_option</span>"</span> &amp;&amp; <span class="hljs-built_in">echo</span> <span class="hljs-string">"--<span class="hljs-variable">$option</span>"</span> || <span class="hljs-built_in">echo</span> <span class="hljs-string">"-<span class="hljs-variable">$short_option</span>, --<span class="hljs-variable">$option</span>"</span>
 }
 
 <span class="hljs-function"><span class="hljs-title">whitelist_options</span></span>() {
@@ -2937,7 +2998,7 @@ deleting all appropriate old release directories in one go.</p>
       [[ <span class="hljs-string">"<span class="hljs-variable">$option</span>"</span> == <span class="hljs-string">"<span class="hljs-variable">$allowed_option</span>"</span> ]] &amp;&amp; allowed=1 &amp;&amp; <span class="hljs-built_in">break</span>
     <span class="hljs-keyword">done</span>
 
-    <span class="hljs-built_in">test</span> -n <span class="hljs-string">"<span class="hljs-variable">$allowed</span>"</span> || abort <span class="hljs-string">"option '<span class="hljs-variable">$option</span>' is not applicable to command '<span class="hljs-variable">$DEPLOY_COMMAND</span>'"</span>
+    <span class="hljs-built_in">test</span> -n <span class="hljs-string">"<span class="hljs-variable">$allowed</span>"</span> || abort <span class="hljs-string">"option '<span class="hljs-variable">$(describe_option "$option")</span>' is not applicable to command '<span class="hljs-variable">$DEPLOY_COMMAND</span>'"</span>
   <span class="hljs-keyword">done</span>
 }
 

@@ -11,7 +11,7 @@
 * fix inheritance (no duplicates)
 * add confirmation prompts
 * verbosity (simple commands, full commands)
-* command line options to add hooks
+* command line options to add hooks (ensure they can be specified multiple times)
 * npm-like Scripts (also usable as hooks)
 * make configuration file optional
 * support a symlink for the configuration file
