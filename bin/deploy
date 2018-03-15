@@ -882,8 +882,7 @@ deploy_rev() {
   local current_dir="$path/current"
   local release_dir="$path/releases/$release"
   local tmp_dir="$path/tmp"
-
-  DEPLOY_KEEP=$(get_last_config_key_value keep)
+  local keep=$(get_last_config_key_value keep)
 
   # You must provide a Git revision, i.e. a **commit, branch or tag** to deploy,
   # either as the `[rev]` argument, with the `rev` config key or the `$DEPLOY_REV` variable.
@@ -911,7 +910,7 @@ deploy_rev() {
   log deploying
   echo "    revision: $rev"
   echo "    release: $release"
-  echo "    keep: ${DEPLOY_KEEP:-all}"
+  echo "    keep: ${keep:-all}"
 
   # * If a [`keep` option](#keep) is configured, all previously deployed releases are listed,
   #   with those to be deleted in red, and those to be kept and the current release in green, and
@@ -1107,12 +1106,12 @@ clean_up_old_releases() {
   require_no_args
   whitelist_deploy_options -k --keep -y --yes
 
-  DEPLOY_KEEP=$(get_last_config_key_value keep)
+  local keep=$(get_last_config_key_value keep)
 
   validate_keep
 
   log cleaning up
-  echo "    keep: ${DEPLOY_KEEP:-all}"
+  echo "    keep: ${keep:-all}"
 
   prepare_to_delete_old_releases cleanup
 
@@ -1293,7 +1292,7 @@ prepare_to_delete_old_releases() {
 
   local command="$1"
 
-  local keep="$DEPLOY_KEEP"
+  local keep="$(get_last_config_key_value keep)"
   local path=$(get_last_config_key_value path)
   local release=$(date -u '+%Y-%m-%d-%H-%M-%S')
   releases_to_delete=

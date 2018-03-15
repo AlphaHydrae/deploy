@@ -1685,8 +1685,7 @@ The name of a release directory is the current date and time in the <code>YYYY-M
   <span class="hljs-built_in">local</span> current_dir=<span class="hljs-string">"<span class="hljs-variable">$path</span>/current"</span>
   <span class="hljs-built_in">local</span> release_dir=<span class="hljs-string">"<span class="hljs-variable">$path</span>/releases/<span class="hljs-variable">$release</span>"</span>
   <span class="hljs-built_in">local</span> tmp_dir=<span class="hljs-string">"<span class="hljs-variable">$path</span>/tmp"</span>
-
-  DEPLOY_KEEP=$(get_last_config_key_value keep)</pre></div></div>
+  <span class="hljs-built_in">local</span> keep=$(get_last_config_key_value keep)</pre></div></div>
             
         </li>
         
@@ -1749,7 +1748,7 @@ You can override this behavior with the <code>-f|--force</code> option (or the <
             <div class="content"><div class='highlight'><pre>  <span class="hljs-built_in">log</span> deploying
   <span class="hljs-built_in">echo</span> <span class="hljs-string">"    revision: <span class="hljs-variable">$rev</span>"</span>
   <span class="hljs-built_in">echo</span> <span class="hljs-string">"    release: <span class="hljs-variable">$release</span>"</span>
-  <span class="hljs-built_in">echo</span> <span class="hljs-string">"    keep: <span class="hljs-variable">${DEPLOY_KEEP:-all}</span>"</span></pre></div></div>
+  <span class="hljs-built_in">echo</span> <span class="hljs-string">"    keep: <span class="hljs-variable">${keep:-all}</span>"</span></pre></div></div>
             
         </li>
         
@@ -2181,12 +2180,12 @@ the <code>$DEPLOY_KEEP</code> variable or the <code>-k|--keep</code> command lin
   require_no_args
   whitelist_deploy_options -k --keep -y --yes
 
-  DEPLOY_KEEP=$(get_last_config_key_value keep)
+  <span class="hljs-built_in">local</span> keep=$(get_last_config_key_value keep)
 
   validate_keep
 
   <span class="hljs-built_in">log</span> cleaning up
-  <span class="hljs-built_in">echo</span> <span class="hljs-string">"    keep: <span class="hljs-variable">${DEPLOY_KEEP:-all}</span>"</span>
+  <span class="hljs-built_in">echo</span> <span class="hljs-string">"    keep: <span class="hljs-variable">${keep:-all}</span>"</span>
 
   prepare_to_delete_old_releases cleanup
 
@@ -2461,7 +2460,7 @@ By default, it keeps these directories forever, leaving you responsible for clea
 
   <span class="hljs-built_in">local</span> <span class="hljs-built_in">command</span>=<span class="hljs-string">"<span class="hljs-variable">$1</span>"</span>
 
-  <span class="hljs-built_in">local</span> keep=<span class="hljs-string">"<span class="hljs-variable">$DEPLOY_KEEP</span>"</span>
+  <span class="hljs-built_in">local</span> keep=<span class="hljs-string">"<span class="hljs-variable">$(get_last_config_key_value keep)</span>"</span>
   <span class="hljs-built_in">local</span> path=$(get_last_config_key_value path)
   <span class="hljs-built_in">local</span> release=$(date -u <span class="hljs-string">'+%Y-%m-%d-%H-%M-%S'</span>)
   releases_to_delete=
