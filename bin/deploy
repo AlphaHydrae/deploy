@@ -1605,11 +1605,11 @@ whitelist_options() {
 }
 
 whitelist_default_options() {
-  whitelist_options -C --chdir --color -c --config "$@"
+  whitelist_options chdir color config "$@"
 }
 
 whitelist_deploy_options() {
-  whitelist_default_options -A --forward-agent -H --host -i --identity -P --path -p --port -t --tty -u --user "$@"
+  whitelist_default_options forward-agent host identity path port tty user "$@"
 }
 
 main $@
