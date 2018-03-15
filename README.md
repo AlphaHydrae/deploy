@@ -326,6 +326,10 @@ This can be handy to create local variables that you can forward to the host.
     export FOO=BAR
     export YEAR=$(date "+%Y")
 
+(Note that if you use the `-C, --chdir` command line option or the `$DEPLOY_CHDIR` variable,
+the `.env` file is read *after* the working directory is set, so setting `$DEPLOY_CHDIR`
+in the file has no effect.)
+
 ## Command line options & environment variables
 
 The properties in the configuration file can also be specified through *command line options* or *environment variables*.

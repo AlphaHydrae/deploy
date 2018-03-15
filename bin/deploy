@@ -27,6 +27,7 @@ DEPLOY_ARGS=("$@")
 DEPLOY_COMMAND=
 DEPLOY_ENV=
 DEPLOY_OPTIONS=()
+DEPLOY_OPTIONS_MAP=''
 
 DEPLOY_COLOR=auto
 DEPLOY_CONFIG=./deploy.conf
@@ -589,6 +590,10 @@ build_export_env_command() {
 #     # .env
 #     export FOO=BAR
 #     export YEAR=$(date "+%Y")
+#
+# (Note that if you use the `-C, --chdir` command line option or the `$DEPLOY_CHDIR` variable,
+# the `.env` file is read *after* the working directory is set, so setting `$DEPLOY_CHDIR`
+# in the file has no effect.)
 load_env_file() {
   test -f .env && { test -r .env || abort "environment file .env is not readable"; }
   test -f .env && { . .env || abort "an error occurred while sourcing .env"; }
@@ -613,7 +618,9 @@ load_env_file() {
 # * Next, the environment variable (e.g. `$DEPLOY_REPO`) takes precedence over the configuration file.
 # * Otherwise, the value in the configuration file (e.g. `repo`) is used.
 parse_script_options() {
+
   local i=0
+
   while test $i -lt "$(script_arg_count)"; do
 
     local option="$(script_arg $i)"
@@ -623,6 +630,7 @@ parse_script_options() {
     fi
 
     local value="$(script_arg $((i+1)))"
+    local has_value=
 
     case $option in
 
@@ -631,15 +639,15 @@ parse_script_options() {
       # These options are valid for most sub-commands:
 
       # * **`-C, --chdir <dir>`** (or the `$DEPLOY_CHDIR` variable) changes **deploy**'s *local* working directory before loading the configuration file.
-      -C|--chdir) DEPLOY_CHDIR="$value"; script_remove_args $i 2 ;;
+      -C|--chdir) has_value=1 ;;
 
       # * **`--color always|never|auto`** (or the `$DEPLOY_COLOR` variable) enables/disables colors in the output of the script.
       #
       #   This defaults to `auto`, which only enables colors if the current terminal is interactive.
-      --color) DEPLOY_COLOR="$value"; script_remove_args $i 2 ;;
+      --color) has_value=1 ;;
 
       # * **`-c, --config <path>`** (or the `$DEPLOY_CONFIG` variable) allows you to set a custom path for the configuration file (defaults to `./deploy.conf`).
-      -c|--config) set_config_path "$value"; script_remove_args $i 2 ;;
+      -c|--config) has_value=1 ;;
 
       # * **`--help`** prints usage information and exits.
       -h|--help) usage; echo; exit 0 ;;
@@ -651,25 +659,25 @@ parse_script_options() {
       #   (only valid for the `rev`, `cleanup` and `update` sub-commands).
       #
       #   **Use with caution:** old releases may be deleted with the `rev` or `cleanup` sub-commands if a [`keep` option](#keep) is configured.
-      -y|--yes) DEPLOY_YES=1; script_remove_args $i ;;
+      -y|--yes) ;;
 
       # ### Project options
       #
       # These options configure where and how the project is deployed on the remote host:
 
       # * **`-r, --repo <url>`** (or the `$DEPLOY_REPO` variable) sets the Git URL to fetch the project's source code from when deploying.
-      -r|--repo) DEPLOY_REPO="$value"; script_remove_args $i 2 ;;
+      -r|--repo) has_value=1 ;;
 
       # * **`-P, --path <dir>`** sets the remote path to deploy the project to on the host
       #   (this is the path to the directory managed by **deploy**, not to the current release).
-      -P|--path) DEPLOY_PATH="$value"; script_remove_args $i 2 ;;
+      -P|--path) has_value=1 ;;
 
       # * **`-k, --keep <n>`** (or the `$DEPLOY_KEEP` variable) changes the number of old releases that are kept
       #   after successful deployment (see the [`keep` option](#keep)).
-      -k|--keep) DEPLOY_KEEP="$value"; script_remove_args $i 2 ;;
+      -k|--keep) has_value=1 ;;
 
       # * **`-f, --force`** (or the `$DEPLOY_FORCE` variable) forces deployment to proceed even when you have uncommitted changes.
-      -f|--force) DEPLOY_FORCE=1; script_remove_args $i ;;
+      -f|--force) ;;
 
       # ### SSH options
       #
@@ -684,28 +692,28 @@ parse_script_options() {
       #   An attacker cannot obtain key material from the agent,
       #   however they can perform operations on the keys that enable them to authenticate
       #   using the identities loaded into the agent.
-      -A|--forward-agent) DEPLOY_FORWARD_AGENT=1; script_remove_args $i ;;
+      -A|--forward-agent) ;;
 
       # * **`-H, --host <address>`** (or the `$DEPLOY_HOST` variable) sets the host to connect to.
-      -H|--host) DEPLOY_HOST="$value"; script_remove_args $i 2 ;;
+      -H|--host) has_value=1 ;;
 
       # * **`-i, --identity <file>`** (or the `$DEPLOY_IDENTITY` variable) selects a file from which the identity (private key)
       #   for public key authentication is read.
       #
       #   The default is `~/.ssh/id_dsa`, `~/.ssh/id_ecdsa`, `~/.ssh/id_ed25519` and `~/.ssh/id_rsa`.
-      -i|--identity) DEPLOY_IDENTITY="$value"; script_remove_args $i 2 ;;
+      -i|--identity) has_value=1 ;;
 
       # * **`-p, --port <n>`** (or the `$DEPLOY_PORT` variable) sets the port to connect to.
-      -p|--port) DEPLOY_PORT="$value"; script_remove_args $i 2 ;;
+      -p|--port) has_value=1 ;;
 
       # * **`-t, --tty`** (or the `$DEPLOY_TTY` variable) forces pseudo-terminal allocation.
       #
       #   This can be used to execute arbitrary screen-based programs on a remote machine,
       #   which can be very useful, e.g. when implementing menu services.
-      -t|--tty) DEPLOY_TTY=1; script_remove_args $i ;;
+      -t|--tty) ;;
 
       # * **`-u, --user <name>`** (or the `$DEPLOY_USER` variable) sets the remote user to connect as.
-      -u|--user) DEPLOY_USER="$value"; script_remove_args $i 2 ;;
+      -u|--user) has_value=1 ;;
 
       # ### Self-update options
       #
@@ -714,13 +722,13 @@ parse_script_options() {
       # * **`--update-path`** (or the `$DEPLOY_UPDATE_PATH` variable) sets the path to save the updated script when using the **update** command.
       #
       #   This overrides the `--update-prefix` or `$DEPLOY_UPDATE_PREFIX` options.
-      --update-path) DEPLOY_UPDATE_PATH="$value"; script_remove_args $i 2 ;;
+      --update-path) has_value=1 ;;
 
       # * **`--update-prefix`** (or the `$DEPLOY_UPDATE_PREFIX` variable) sets the base directory when using the **update** command.
       #
       #   The updated script will be saved in `bin/deploy` relative to this path.
       #   (Note that setting `--update-path` or `$DEPLOY_UPDATE_PATH` overrides this option.)
-      --update-prefix) DEPLOY_UPDATE_PREFIX="$value"; script_remove_args $i 2 ;;
+      --update-prefix) has_value=1 ;;
 
       *) usage; abort "unknown option '$option'"
     esac
@@ -729,6 +737,23 @@ parse_script_options() {
     script_has_option "$long_option" && abort "option $(describe_option "$long_option") must only be given once"
 
     DEPLOY_OPTIONS+=("$long_option")
+
+    test -z "$has_value" && value=1
+    DEPLOY_OPTIONS_MAP="$(printf "$DEPLOY_OPTIONS_MAP\n$long_option $value")"
+
+    test -z "$has_value" && script_remove_args $i || script_remove_args $i 2
+  done
+}
+
+apply_script_options() {
+
+  local options="$@"
+  test -z "$options" && options="$(echo "$DEPLOY_OPTIONS_MAP"|cut -d ' ' -f 1|tr '\n' ' ')"
+
+  for option in $options; do
+    local variable_name="DEPLOY_$(echo "$option"| tr '-' '_'|tr '[a-z]' '[A-Z]')"
+    local variable_value="$(echo "$DEPLOY_OPTIONS_MAP"|grep "^${option} "|cut -d ' ' -f 2-999)"
+    export $variable_name="$variable_value"
   done
 }
 
@@ -739,9 +764,14 @@ parse_script_options() {
 # * `deploy -u deploy --keep 3 --yes production master`
 # * `deploy production master -u deploy --keep 3 --yes`
 main() {
-  load_env_file
   parse_script_options
+  apply_script_options chdir
+
   test -n "$DEPLOY_CHDIR" && change_working_directory "$DEPLOY_CHDIR"
+  load_env_file
+
+  apply_script_options
+  check_config_file_valid "$DEPLOY_CONFIG"
 
   local subcommand=
   while test -z "$subcommand"; do
@@ -787,12 +817,6 @@ main() {
   fi
 
   $subcommand
-}
-
-set_config_path() {
-  local file="$1"
-  check_config_file_valid "$file"
-  DEPLOY_CONFIG="$file"
 }
 
 change_working_directory() {
