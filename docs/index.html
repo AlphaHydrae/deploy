@@ -1674,6 +1674,32 @@ Note that this directory <strong>must already exist</strong> on the host and be 
               <div class="pilwrap ">
                 <a class="pilcrow" href="#section-67">&#182;</a>
               </div>
+              <p>You must provide a Git revision, i.e. a <strong>commit, branch or tag</strong> to deploy,
+either as the <code>[rev]</code> argument, with the <code>rev</code> config key or the <code>$DEPLOY_REV</code> variable.</p>
+<p>If your Git repository is <strong>private</strong>, make sure that the deployment user has access to it.</p>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>  <span class="hljs-built_in">local</span> rev=<span class="hljs-string">"<span class="hljs-variable">$(get_last_config_key_value rev)</span>"</span>
+  <span class="hljs-keyword">if</span> script_has_args; <span class="hljs-keyword">then</span>
+    rev=<span class="hljs-string">"<span class="hljs-variable">$(script_arg)</span>"</span>
+    script_shift_and_parse_options
+  <span class="hljs-keyword">fi</span>
+
+  <span class="hljs-built_in">test</span> -n <span class="hljs-string">"<span class="hljs-variable">$rev</span>"</span> || abort <span class="hljs-string">"no commit, branch or tag specified"</span>
+
+  require_no_args
+  whitelist_deploy_options -f --force -k --keep -y --yes</pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-68">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-68">&#182;</a>
+              </div>
               <p>For each deployment, a new release directory will be created in <code>releases</code> in the deployment directory.
 The name of a release directory is the current date and time in the <code>YYYY-MM-DD-HH-MM-SS</code> format.
 (You can list deployed releases with the <a href="#list">list command</a>.)</p>
@@ -1685,31 +1711,7 @@ The name of a release directory is the current date and time in the <code>YYYY-M
   <span class="hljs-built_in">local</span> current_dir=<span class="hljs-string">"<span class="hljs-variable">$path</span>/current"</span>
   <span class="hljs-built_in">local</span> release_dir=<span class="hljs-string">"<span class="hljs-variable">$path</span>/releases/<span class="hljs-variable">$release</span>"</span>
   <span class="hljs-built_in">local</span> tmp_dir=<span class="hljs-string">"<span class="hljs-variable">$path</span>/tmp"</span>
-  <span class="hljs-built_in">local</span> keep=$(get_last_config_key_value keep)</pre></div></div>
-            
-        </li>
-        
-        
-        <li id="section-68">
-            <div class="annotation">
-              
-              <div class="pilwrap ">
-                <a class="pilcrow" href="#section-68">&#182;</a>
-              </div>
-              <p>You must provide a Git revision, i.e. a <strong>commit, branch or tag</strong> to deploy,
-either as the <code>[rev]</code> argument, with the <code>rev</code> config key or the <code>$DEPLOY_REV</code> variable.</p>
-<p>If your Git repository is <strong>private</strong>, make sure that the deployment user has access to it.</p>
-
-            </div>
-            
-            <div class="content"><div class='highlight'><pre>  <span class="hljs-built_in">local</span> rev=<span class="hljs-string">"<span class="hljs-variable">$DEPLOY_REV</span>"</span>
-  <span class="hljs-keyword">if</span> script_has_args; <span class="hljs-keyword">then</span>
-    rev=<span class="hljs-string">"<span class="hljs-variable">$(script_arg)</span>"</span>
-    script_shift_and_parse_options
-  <span class="hljs-keyword">fi</span>
-
-  require_no_args
-  whitelist_deploy_options -f --force -k --keep -y --yes
+  <span class="hljs-built_in">local</span> keep=$(get_last_config_key_value keep)
 
   validate_keep</pre></div></div>
             
@@ -1727,10 +1729,7 @@ You can override this behavior with the <code>-f|--force</code> option (or the <
 
             </div>
             
-            <div class="content"><div class='highlight'><pre>  require_no_local_changes
-
-  <span class="hljs-built_in">test</span> -z <span class="hljs-string">"<span class="hljs-variable">$rev</span>"</span> &amp;&amp; rev=$(get_last_config_key_value rev)
-  <span class="hljs-built_in">test</span> -n <span class="hljs-string">"<span class="hljs-variable">$rev</span>"</span> || abort <span class="hljs-string">"no commit, branch or tag specified"</span></pre></div></div>
+            <div class="content"><div class='highlight'><pre>  require_no_local_changes</pre></div></div>
             
         </li>
         
@@ -1961,7 +1960,7 @@ port 222
             
             <div class="content"><div class='highlight'><pre>  <span class="hljs-keyword">if</span> ! script_has_args; <span class="hljs-keyword">then</span>
     whitelist_default_options
-    <span class="hljs-built_in">test</span> -z <span class="hljs-string">"<span class="hljs-variable">$DEPLOY_ENV</span>"</span> || abort <span class="hljs-string">"[env] not supported without [key] for this command"</span>
+    <span class="hljs-built_in">test</span> -z <span class="hljs-string">"<span class="hljs-variable">$DEPLOY_ENV</span>"</span> || abort <span class="hljs-string">"this commands only supports both [env] and [key] arguments or neither"</span>
     require_config
     cat <span class="hljs-string">"<span class="hljs-variable">$DEPLOY_CONFIG</span>"</span></pre></div></div>
             

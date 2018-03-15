@@ -874,6 +874,21 @@ set_up_host() {
 deploy_rev() {
   require_env
 
+  # You must provide a Git revision, i.e. a **commit, branch or tag** to deploy,
+  # either as the `[rev]` argument, with the `rev` config key or the `$DEPLOY_REV` variable.
+  #
+  # If your Git repository is **private**, make sure that the deployment user has access to it.
+  local rev="$(get_last_config_key_value rev)"
+  if script_has_args; then
+    rev="$(script_arg)"
+    script_shift_and_parse_options
+  fi
+
+  test -n "$rev" || abort "no commit, branch or tag specified"
+
+  require_no_args
+  whitelist_deploy_options -f --force -k --keep -y --yes
+
   # For each deployment, a new release directory will be created in `releases` in the deployment directory.
   # The name of a release directory is the current date and time in the `YYYY-MM-DD-HH-MM-SS` format.
   # (You can list deployed releases with the [list command](#list).)
@@ -884,27 +899,11 @@ deploy_rev() {
   local tmp_dir="$path/tmp"
   local keep=$(get_last_config_key_value keep)
 
-  # You must provide a Git revision, i.e. a **commit, branch or tag** to deploy,
-  # either as the `[rev]` argument, with the `rev` config key or the `$DEPLOY_REV` variable.
-  #
-  # If your Git repository is **private**, make sure that the deployment user has access to it.
-  local rev="$DEPLOY_REV"
-  if script_has_args; then
-    rev="$(script_arg)"
-    script_shift_and_parse_options
-  fi
-
-  require_no_args
-  whitelist_deploy_options -f --force -k --keep -y --yes
-
   validate_keep
 
   # Note that **deploy** will refuse to deploy unless all your local changes are committed and pushed.
   # You can override this behavior with the `-f|--force` option (or the `$DEPLOY_FORCE` variable).
   require_no_local_changes
-
-  test -z "$rev" && rev=$(get_last_config_key_value rev)
-  test -n "$rev" || abort "no commit, branch or tag specified"
 
   # This is what **deploy** will do during deployment:
   log deploying
@@ -987,7 +986,7 @@ print_config_or_value() {
   #   ```
   if ! script_has_args; then
     whitelist_default_options
-    test -z "$DEPLOY_ENV" || abort "[env] not supported without [key] for this command"
+    test -z "$DEPLOY_ENV" || abort "this commands only supports both [env] and [key] arguments or neither"
     require_config
     cat "$DEPLOY_CONFIG"
 

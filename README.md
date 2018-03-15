@@ -486,14 +486,14 @@ This is what **deploy** will do during setup:
 
 **Deploy a new release** from the latest changes in the Git repository.
 
-For each deployment, a new release directory will be created in `releases` in the deployment directory.
-The name of a release directory is the current date and time in the `YYYY-MM-DD-HH-MM-SS` format.
-(You can list deployed releases with the [list command](#list).)
-
 You must provide a Git revision, i.e. a **commit, branch or tag** to deploy,
 either as the `[rev]` argument, with the `rev` config key or the `$DEPLOY_REV` variable.
 
 If your Git repository is **private**, make sure that the deployment user has access to it.
+
+For each deployment, a new release directory will be created in `releases` in the deployment directory.
+The name of a release directory is the current date and time in the `YYYY-MM-DD-HH-MM-SS` format.
+(You can list deployed releases with the [list command](#list).)
 
 Note that **deploy** will refuse to deploy unless all your local changes are committed and pushed.
 You can override this behavior with the `-f|--force` option (or the `$DEPLOY_FORCE` variable).
