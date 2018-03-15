@@ -631,7 +631,7 @@ parse_script_options() {
       # These options are valid for most sub-commands:
 
       # * **`-C, --chdir <dir>`** (or the `$DEPLOY_CHDIR` variable) changes **deploy**'s *local* working directory before loading the configuration file.
-      -C|--chdir) set_working_directory "$value"; script_remove_args $i 2 ;;
+      -C|--chdir) DEPLOY_CHDIR="$value"; script_remove_args $i 2 ;;
 
       # * **`--color always|never|auto`** (or the `$DEPLOY_COLOR` variable) enables/disables colors in the output of the script.
       #
@@ -800,14 +800,7 @@ change_working_directory() {
   test -e "$dir" || abort "invalid working directory: '$dir' does not exist"
   test -d "$dir" || abort "invalid working directory: '$dir' is not a directory"
   test -x "$dir" || abort "invalid working directory: '$dir' cannot be accessed"
-  DEPLOY_CHDIR="$dir"
   cd "$dir"
-}
-
-set_working_directory() {
-  local dir="$1"
-  test -z "$DEPLOY_CHDIR" || abort "working directory can only be changed once either through the -C, --chdir command line option or the \$DEPLOY_CHDIR variable"
-  change_working_directory "$dir"
 }
 
 check_config_file_valid() {
