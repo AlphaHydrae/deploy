@@ -1,9 +1,11 @@
 # TODO
 
-* parse options & arguments in all commands (to avoid ignoring unknown stuff)
-* do not run pre-deploy hooks for first deployment
-* check required commands on server (at setup)
+* validate all option values
 * check required variables for all commands (e.g. `path`)
+* do not run pre-deploy hooks for first deployment
+* standardize indented logs
+* also source environment-specific env files (e.g. `.env.production`)
+* check required commands on server (at setup)
 * add `-e|--environment` option to support environments named after a sub-command
 * `setup` and `rev` should update the git clone url if it changed
 * fix inheritance (no duplicates)

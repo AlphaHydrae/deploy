@@ -25,22 +25,27 @@ Shamelessly inspired by: [visionmedia/deploy](https://github.com/visionmedia/dep
   - [Single-value and multiple-value keys](#single-value-and-multiple-value-keys)
   - [Environment inheritance](#environment-inheritance)
 - [Hooks](#hooks)
-- [Configuration properties](#configuration-properties)
+- [Configuration file](#configuration-file-1)
   - [Project](#project)
   - [SSH connection](#ssh-connection)
-  - [Environment variables](#environment-variables)
-- [General options](#general-options)
+  - [Host environment variables](#host-environment-variables)
+- [Command line options & environment variables](#command-line-options--environment-variables)
+  - [General options](#general-options)
+  - [Project options](#project-options)
+  - [SSH options](#ssh-options)
+  - [Self-update options](#self-update-options)
+- [Default command](#default-command)
 - [Sub-commands](#sub-commands)
   - [`<env> setup`](#env-setup)
-  - [`<env> rev [-f|--force] [rev]`](#env-rev--f--force-rev)
+  - [`<env> rev [rev]`](#env-rev-rev)
   - [`[env] config [key]`](#env-config-key)
   - [`<env> config-all <key>`](#env-config-all-key)
   - [`[env] config-section`](#env-config-section)
   - [`<env> console [path]`](#env-console-path)
-  - [`<env> cleanup [--keep n]`](#env-cleanup---keep-n)
+  - [`<env> cleanup`](#env-cleanup)
   - [`<env> exec <cmd>`](#env-exec-cmd)
   - [`<env> list`](#env-list)
-  - [`update [--prefix dir] [--path path] [rev]`](#update---prefix-dir---path-path-rev)
+  - [`update [rev]`](#update-rev)
 - [Cleaning up old releases](#cleaning-up-old-releases)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
@@ -125,7 +130,7 @@ It also optionally requires the `chmod`, `cp` and `mktemp` commands to update it
 ## Configuration file
 
 **deploy** reads its main configuration from a `deploy.conf` file in the current directory.
-It can also be customized with [environment variables](#environment-variables) and [command line options](#general-options).
+It can also be customized with [environment variables and command line options](#command-line-options).
 
 The configuration file is basically a series of sections containing key/value pairs:
 
@@ -241,7 +246,7 @@ They will all be run in order.
 Each hook is run in a specific working directory and has access to various environment variables.
 `$DEPLOY_PATH` is always exported and indicates the deployment directory
 (which is not necessarily the same as the hook's working directory).
-Additional user-defined variables may also be made available (see [environment variables](#environment-variables)).
+Additional user-defined variables may also be made available (see [environment variables](#host-environment-variables)).
 
 Here's an example of how you could use hooks to cache your `node_modules` directory after every deployment
 to shorten future installation times:
@@ -255,7 +260,7 @@ to shorten future installation times:
 
 See the [`setup`](#setup) and [`rev`](#deploy) commands to learn exactly when and where hooks are executed.
 
-## Configuration properties
+## Configuration file
 
 ### Project
 
@@ -294,7 +299,7 @@ Commands executed on the host through SSH will be logged to the console.
 
 For some commands, the output may be retrieved and displayed in a more user-friendly manner.
 
-### Environment variables
+### Host environment variables
 
 You can define environment variables that will be exported on the host when executing hooks.
 
@@ -321,23 +326,60 @@ This can be handy to create local variables that you can forward to the host.
     export FOO=BAR
     export YEAR=$(date "+%Y")
 
-## General options
+## Command line options & environment variables
 
-These are the command line options of **deploy** itself, that are not specific to a particular sub-command.
+The properties in the configuration file can also be specified through *command line options* or *environment variables*.
 
-They come directly after the `deploy` binary, before the environment and command:
+For example, the `repo` property in the configuration file can also be specified:
 
-```sh
-deploy --version
-deploy --config foo.conf production setup
-```
+* With the `-r, --repo <url>` command line option.
+* With the `$DEPLOY_REPO` environment variable.
 
-Most of them have corresponding configuration file options and environment variables,
-but values given as command line options always take precedence.
+Their precedence is as follows:
+
+* The command line option (e.g. `-r, --repo <url>`) always takes precedence if specified.
+* Next, the environment variable (e.g. `$DEPLOY_REPO`) takes precedence over the configuration file.
+* Otherwise, the value in the configuration file (e.g. `repo`) is used.
+
+### General options
+
+These options are valid for most sub-commands:
+
+* **`-C, --chdir <dir>`** (or the `$DEPLOY_CHDIR` variable) changes **deploy**'s *local* working directory before loading the configuration file.
+
+* **`--color always|never|auto`** (or the `$DEPLOY_COLOR` variable) enables/disables colors in the output of the script.
+
+  This defaults to `auto`, which only enables colors if the current terminal is interactive.
+
+* **`-c, --config <path>`** (or the `$DEPLOY_CONFIG` variable) allows you to set a custom path for the configuration file (defaults to `./deploy.conf`).
 
 * **`--help`** prints usage information and exits.
 
 * **`-v, -V, --version`** prints the current version and exits.
+
+* **`-y, --yes`** (or the `$DEPLOY_YES` variable) will automatically accept all confirmation prompts
+  (only valid for the `rev`, `cleanup` and `update` sub-commands).
+
+  **Use with caution:** old releases may be deleted with the `rev` or `cleanup` sub-commands if a [`keep` option](#keep) is configured.
+
+### Project options
+
+These options configure where and how the project is deployed on the remote host:
+
+* **`-r, --repo <url>`** (or the `$DEPLOY_REPO` variable) sets the Git URL to fetch the project's source code from when deploying.
+
+* **`-P, --path <dir>`** sets the remote path to deploy the project to on the host
+  (this is the path to the directory managed by **deploy**, not to the current release).
+
+* **`-k, --keep <n>`** (or the `$DEPLOY_KEEP` variable) changes the number of old releases that are kept
+  after successful deployment (see the [`keep` option](#keep)).
+
+* **`-f, --force`** (or the `$DEPLOY_FORCE` variable) forces deployment to proceed even when you have uncommitted changes.
+
+### SSH options
+
+These options are valid for all commands which connect to the remote host through SSH
+(`setup`, `rev`, `console`, `exec`, `list` and `cleanup`):
 
 * **`-A, --forward-agent`** (or the `$DEPLOY_FORWARD_AGENT` variable) enables forwarding of the authentication agent connection.
 
@@ -348,14 +390,6 @@ but values given as command line options always take precedence.
   however they can perform operations on the keys that enable them to authenticate
   using the identities loaded into the agent.
 
-* **`-C, --chdir <dir>`** (or the `$DEPLOY_CHDIR` variable) changes **deploy**'s *local* working directory before loading the configuration file.
-
-* **`-c, --config <path>`** (or the `$DEPLOY_CONFIG` variable) allows you to set a custom path for the configuration file (defaults to `./deploy.conf`).
-
-* **`--color always|never|auto`** (or the `$DEPLOY_COLOR` variable) enables/disables colors in the output of the script.
-
-  This defaults to `auto`, which only enables colors if the current terminal is interactive.
-
 * **`-H, --host <address>`** (or the `$DEPLOY_HOST` variable) sets the host to connect to.
 
 * **`-i, --identity <file>`** (or the `$DEPLOY_IDENTITY` variable) selects a file from which the identity (private key)
@@ -363,12 +397,7 @@ but values given as command line options always take precedence.
 
   The default is `~/.ssh/id_dsa`, `~/.ssh/id_ecdsa`, `~/.ssh/id_ed25519` and `~/.ssh/id_rsa`.
 
-* **`-P, --path <dir>`** sets the remote path to deploy the project to on the server
-  (this is the path to the directory managed by **deploy**, not to the current release).
-
 * **`-p, --port <n>`** (or the `$DEPLOY_PORT` variable) sets the port to connect to.
-
-* **`-r, --repo <url>`** (or the `$DEPLOY_REPO` variable) sets the Git URL to fetch the project's source code from when deploying.
 
 * **`-t, --tty`** (or the `$DEPLOY_TTY` variable) forces pseudo-terminal allocation.
 
@@ -377,9 +406,39 @@ but values given as command line options always take precedence.
 
 * **`-u, --user <name>`** (or the `$DEPLOY_USER` variable) sets the remote user to connect as.
 
-* **`-y, --yes`** (or the `$DEPLOY_YES` variable) will automatically accept all confirmation prompts.
+### Self-update options
 
-  **Use with caution:** old releases may be deleted if a [`keep` option](#keep) is configured.
+These options can be used by **deploy** to update itself with the `update` sub-command:
+
+* **`--update-path`** (or the `$DEPLOY_UPDATE_PATH` variable) sets the path to save the updated script when using the **update** command.
+
+  This overrides the `--update-prefix` or `$DEPLOY_UPDATE_PREFIX` options.
+
+* **`--update-prefix`** (or the `$DEPLOY_UPDATE_PREFIX` variable) sets the base directory when using the **update** command.
+
+  The updated script will be saved in `bin/deploy` relative to this path.
+  (Note that setting `--update-path` or `$DEPLOY_UPDATE_PATH` overrides this option.)
+
+Note that command line options can be used anywhere in a **deploy** command.
+The following 3 commands are equivalent:
+
+* `deploy -u deploy production --keep 3 --yes master`
+* `deploy -u deploy --keep 3 --yes production master`
+* `deploy production master -u deploy --keep 3 --yes`
+
+## Default command
+
+**deploy** is usually used this way:
+
+* `deploy prod setup`
+* `deploy prod list`
+* `deploy prod rev master`
+
+However, since the most often used sub-command is `rev`,
+it is also the **default command**. The following 2 commands are equivalent:
+
+* `deploy prod master`
+* `deploy prod rev master`
 
 ## Sub-commands
 
@@ -423,7 +482,7 @@ This is what **deploy** will do during setup:
 
 <a name="deploy"></a>
 
-### `<env> rev [-f|--force] [rev]`
+### `<env> rev [rev]`
 
 **Deploy a new release** from the latest changes in the Git repository.
 
@@ -443,7 +502,7 @@ This is what **deploy** will do during deployment:
 
 * If a [`keep` option](#keep) is configured, all previously deployed releases are listed,
   with those to be deleted in red, and those to be kept and the current release in green, and
-  confirmation will be asked.
+  confirmation is asked that they may be deleted if the deployment is successful.
 
 * User-defined pre-deploy hooks (if any) are run **in the directory of the previous release**.
   You may define **pre-deploy hooks** to perform any task you might want to do before the actual deployment
@@ -535,13 +594,12 @@ Launch an interactive **ssh session** on the host.
 
 <a name="cleanup"></a>
 
-### `<env> cleanup [--keep n]`
+### `<env> cleanup`
 
 Deletes old releases based on the [`keep` option](#keep).
 
-The number of releases to keep defaults on the `keep` configuration file option
-or the `$DEPLOY_KEEP` variable, but can also be overriden with the `-k|--keep`
-command line option.
+The number of releases to keep is determined from the `keep` configuration file option,
+the `$DEPLOY_KEEP` variable or the `-k|--keep` command line option.
 
 The releases to delete will be listed and confirmation will be asked before they are actually deleted.
 
@@ -566,20 +624,11 @@ $> deploy production list
 2017-04-01-00-00-00
 ```
 
-### `update [--prefix dir] [--path path] [rev]`
+### `update [rev]`
 
 Updates **deploy** to the latest version by downloading it from the Git repository and installing it at `/usr/local/bin/deploy` (by default).
 
 In addition to the basic requirements, this sub-command also requires `chmod`, `cp` and `mktemp` to be available in the shell.
-
-* If a **`--prefix <dir>`** directory is specified, the script will be installed
-  at `bin/deploy` relative to that directory.
-
-* If a **`--path <file>`** file is specified, the script will be installed there
-  (this *ignores* the `--prefix` option).
-
-* The optional **`[rev]`** argument is the Git revision at which to install the script.
-  This defaults to `master`.
 
 The installation path must be a writable file or not exist.
 If the installation path does not already exist, its parent must be a writable directory.
@@ -595,7 +644,7 @@ By default, it keeps these directories forever, leaving you responsible for clea
 
 If given a [`keep` option](#keep), it can do it for you automatically after each deployment.
 
-**deploy** will list the contents of the `releases` directory on the server.
+**deploy** will list the contents of the `releases` directory on the host.
 
 If no old release is found, deployment will proceed normally.
 
@@ -605,15 +654,15 @@ If the number of old releases is equal to or greater than the `keep` number,
 Old releases that will be kept will be shown in green.
 
 During deployment, the current release being deployed is also indicated in green
-(as it counts in the `keep` number).
+(as it counts towards the `keep` number).
 
 If there are any releases to delete, **deploy** will ask for confirmation
-(unless the `--yes` command line option or the `$DEPLOY_YES` variable is specified).
+(unless the `-y, --yes` command line option or the `$DEPLOY_YES` variable is specified).
 
 Responding "no" interrupts the deployment and prints a help message explaining
 how to configure the `keep` number.
 
 The actual cleanup of old releases is always performed **after successful deployment**.
 
-A single `rm` command is executed on the server through SSH,
+A single `rm` command is executed on the host through SSH,
 deleting all appropriate old release directories in one go.
