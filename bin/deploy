@@ -964,6 +964,18 @@ deploy_rev() {
   echo "    release: $release"
   echo "    keep: ${keep:-all}"
 
+  log checking current release
+
+  local get_current_release_dir_command="readlink $path/current"
+  log_command "$get_current_release_dir_command"
+
+  local current_release_dir="$(run_no_log "$get_current_release_dir_command")"
+  if test -n "$current_release_dir"; then
+    log_color $COLOR_CYAN "$current_release_dir"
+  else
+    log_color $COLOR_CYAN "none (pre-deploy hooks will not be run)"
+  fi
+
   # * If a [`keep` option](#keep) is configured, all previously deployed releases are listed,
   #   with those to be deleted in red, and those to be kept and the current release in green, and
   #   confirmation is asked that they may be deleted if the deployment is successful.
@@ -972,7 +984,12 @@ deploy_rev() {
   # * User-defined pre-deploy hooks (if any) are run **in the directory of the previous release**.
   #   You may define **pre-deploy hooks** to perform any task you might want to do before the actual deployment
   #   (e.g. you might want to stop the currently running version or put it into maintenance mode).
-  run_hooks pre-deploy "$current_dir"
+  if test -n "$current_release_dir"; then
+    run_hooks pre-deploy "$current_release_dir"
+  else
+    log hook pre-deploy
+    log_color $COLOR_CYAN "skipping because there is no current release"
+  fi
 
   # * The latest changes are fetched from the repository.
   log fetching updates
@@ -1366,7 +1383,7 @@ prepare_to_delete_old_releases() {
 
   # If no old release is found, deployment will proceed normally.
   if test -z "$releases_list"; then
-    echo "    no old releases to delete"
+    log_color $COLOR_CYAN "no old releases to delete"
     return 0
   fi
 

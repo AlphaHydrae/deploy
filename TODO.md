@@ -2,12 +2,12 @@
 
 * validate all option values
 * check required variables for all commands (e.g. `path`)
-* do not run pre-deploy hooks for first deployment
 * standardize indented logs
 * also source environment-specific env files (e.g. `.env.production`)
 * check required commands on server (at setup)
 * add `-e|--environment` option to support environments named after a sub-command
 * `setup` and `rev` should update the git clone url if it changed
+* add `-q|--quiet` option (e.g. list releases)
 * fix inheritance (no duplicates)
 * add confirmation prompts
 * verbosity (simple commands, full commands)

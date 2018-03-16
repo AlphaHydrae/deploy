@@ -1799,7 +1799,19 @@ You can override this behavior with the <code>-f|--force</code> option (or the <
             <div class="content"><div class='highlight'><pre>  <span class="hljs-built_in">log</span> deploying
   <span class="hljs-built_in">echo</span> <span class="hljs-string">"    revision: <span class="hljs-variable">$rev</span>"</span>
   <span class="hljs-built_in">echo</span> <span class="hljs-string">"    release: <span class="hljs-variable">$release</span>"</span>
-  <span class="hljs-built_in">echo</span> <span class="hljs-string">"    keep: <span class="hljs-variable">${keep:-all}</span>"</span></pre></div></div>
+  <span class="hljs-built_in">echo</span> <span class="hljs-string">"    keep: <span class="hljs-variable">${keep:-all}</span>"</span>
+
+  <span class="hljs-built_in">log</span> checking current release
+
+  <span class="hljs-built_in">local</span> get_current_release_dir_command=<span class="hljs-string">"readlink <span class="hljs-variable">$path</span>/current"</span>
+  log_command <span class="hljs-string">"<span class="hljs-variable">$get_current_release_dir_command</span>"</span>
+
+  <span class="hljs-built_in">local</span> current_release_dir=<span class="hljs-string">"<span class="hljs-variable">$(run_no_log "$get_current_release_dir_command")</span>"</span>
+  <span class="hljs-keyword">if</span> <span class="hljs-built_in">test</span> -n <span class="hljs-string">"<span class="hljs-variable">$current_release_dir</span>"</span>; <span class="hljs-keyword">then</span>
+    log_color <span class="hljs-variable">$COLOR_CYAN</span> <span class="hljs-string">"<span class="hljs-variable">$current_release_dir</span>"</span>
+  <span class="hljs-keyword">else</span>
+    log_color <span class="hljs-variable">$COLOR_CYAN</span> <span class="hljs-string">"none (pre-deploy hooks will not be run)"</span>
+  <span class="hljs-keyword">fi</span></pre></div></div>
             
         </li>
         
@@ -1837,7 +1849,12 @@ You may define <strong>pre-deploy hooks</strong> to perform any task you might w
 
             </div>
             
-            <div class="content"><div class='highlight'><pre>  run_hooks pre-deploy <span class="hljs-string">"<span class="hljs-variable">$current_dir</span>"</span></pre></div></div>
+            <div class="content"><div class='highlight'><pre>  <span class="hljs-keyword">if</span> <span class="hljs-built_in">test</span> -n <span class="hljs-string">"<span class="hljs-variable">$current_release_dir</span>"</span>; <span class="hljs-keyword">then</span>
+    run_hooks pre-deploy <span class="hljs-string">"<span class="hljs-variable">$current_release_dir</span>"</span>
+  <span class="hljs-keyword">else</span>
+    <span class="hljs-built_in">log</span> hook pre-deploy
+    log_color <span class="hljs-variable">$COLOR_CYAN</span> <span class="hljs-string">"skipping because there is no current release"</span>
+  <span class="hljs-keyword">fi</span></pre></div></div>
             
         </li>
         
@@ -2557,7 +2574,7 @@ By default, it keeps these directories forever, leaving you responsible for clea
             </div>
             
             <div class="content"><div class='highlight'><pre>  <span class="hljs-keyword">if</span> <span class="hljs-built_in">test</span> -z <span class="hljs-string">"<span class="hljs-variable">$releases_list</span>"</span>; <span class="hljs-keyword">then</span>
-    <span class="hljs-built_in">echo</span> <span class="hljs-string">"    no old releases to delete"</span>
+    log_color <span class="hljs-variable">$COLOR_CYAN</span> <span class="hljs-string">"no old releases to delete"</span>
     <span class="hljs-built_in">return</span> 0
   <span class="hljs-keyword">fi</span></pre></div></div>
             
