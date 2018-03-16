@@ -1,8 +1,6 @@
 # TODO
 
-* validate all option values
-* check required variables for all commands (e.g. `path`)
-* standardize indented logs
+* standardize indented logs & log_color/echo_color
 * also source environment-specific env files (e.g. `.env.production`)
 * check required commands on server (at setup)
 * add `-e|--environment` option to support environments named after a sub-command
@@ -18,3 +16,4 @@
 * create a deployment log (include commit)
 * add commands to manipulate previous releases (print info, rollback)
 * add --path option to exec
+* more detailed errors if setup has not been done

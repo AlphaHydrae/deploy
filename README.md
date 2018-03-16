@@ -34,6 +34,11 @@ Shamelessly inspired by: [visionmedia/deploy](https://github.com/visionmedia/dep
   - [Project options](#project-options)
   - [SSH options](#ssh-options)
   - [Self-update options](#self-update-options)
+- [Command line options format](#command-line-options-format)
+  - [Short option format](#short-option-format)
+  - [Long option format](#long-option-format)
+  - [Invalid options](#invalid-options)
+  - [Changing the working directory](#changing-the-working-directory)
 - [Default command](#default-command)
 - [Sub-commands](#sub-commands)
   - [`<env> setup`](#env-setup)
@@ -130,7 +135,7 @@ It also optionally requires the `chmod`, `cp` and `mktemp` commands to update it
 ## Configuration file
 
 **deploy** reads its main configuration from a `deploy.conf` file in the current directory.
-It can also be customized with [environment variables and command line options](#command-line-options).
+It can also be customized with [environment variables and command line options](#command-line-options-environment-variables).
 
 The configuration file is basically a series of sections containing key/value pairs:
 
@@ -327,7 +332,7 @@ This can be handy to create local variables that you can forward to the host.
     export YEAR=$(date "+%Y")
 
 (Note that if you use the `-C, --chdir` command line option or the `$DEPLOY_CHDIR` variable,
-the `.env` file is read *after* the working directory is set, so setting `$DEPLOY_CHDIR`
+the `.env` file is read *after* the working directory is changed, so setting `$DEPLOY_CHDIR`
 in the file has no effect.)
 
 ## Command line options & environment variables
@@ -355,7 +360,7 @@ These options are valid for most sub-commands:
 
   This defaults to `auto`, which only enables colors if the current terminal is interactive.
 
-* **`-c, --config <path>`** (or the `$DEPLOY_CONFIG` variable) allows you to set a custom path for the configuration file (defaults to `./deploy.conf`).
+* **`-c, --config <file>`** (or the `$DEPLOY_CONFIG` variable) allows you to set a custom path for the configuration file (defaults to `./deploy.conf`).
 
 * **`--help`** prints usage information and exits.
 
@@ -414,21 +419,60 @@ These options are valid for all commands which connect to the remote host throug
 
 These options can be used by **deploy** to update itself with the `update` sub-command:
 
-* **`--update-path`** (or the `$DEPLOY_UPDATE_PATH` variable) sets the path to save the updated script when using the **update** command.
+* **`--update-path <file>`** (or the `$DEPLOY_UPDATE_PATH` variable) sets the path to save the updated script when using the **update** command.
 
   This overrides the `--update-prefix` or `$DEPLOY_UPDATE_PREFIX` options.
 
-* **`--update-prefix`** (or the `$DEPLOY_UPDATE_PREFIX` variable) sets the base directory when using the **update** command.
+* **`--update-prefix <dir>`** (or the `$DEPLOY_UPDATE_PREFIX` variable) sets the base directory when using the **update** command.
 
   The updated script will be saved in `bin/deploy` relative to this path.
   (Note that setting `--update-path` or `$DEPLOY_UPDATE_PATH` overrides this option.)
 
-Note that command line options can be used anywhere in a **deploy** command.
+## Command line options format
+
+Note that all of **deploy**'s command line options can be used anywhere in a command.
 The following 3 commands are equivalent:
 
 * `deploy -u deploy production --keep 3 --yes master`
 * `deploy -u deploy --keep 3 --yes production master`
 * `deploy production master -u deploy --keep 3 --yes`
+
+### Short option format
+
+Some options have a short form which may be specified with **one hyphen**,
+e.g. `-h` to display usage or `-f` to force deployment with uncommitted local changes.
+
+If a short option takes a value, it may be provided either as the next argument
+(e.g. `-k 5`) or with an equal sign (e.g. `-k=5`).
+
+### Long option format
+
+All options have a long form which may be specified with **two hyphens**,
+e.g. `--help` or `--force`.
+
+If a long option takes a value, it may be provided either as the next argument
+(e.g. `--keep 5`) or with an equal sign (e.g. `--keep=5`).
+
+### Invalid options
+
+The following errors will cause the script to be interrupted and print an error:
+
+* Badly formatted or unknown options (e.g. `---foo`, `-bar`, `--baz`).
+
+* Options that take no value specified with a value (e.g. `--help=3`).
+
+* Options that take a value specified without their value.
+
+* Duplicate options (e.g. both `-k 5` and `--keep 3`).
+
+### Changing the working directory
+
+By default, **deploy** looks in the current directory to find its configuration file
+and optional environment files. This can be customized by setting the `-c, --chdir <dir>`
+command line option or the `$DEPLOY_CHDIR` variable.
+
+If this option is set, **deploy** will first move to that directory before sourcing
+the environment files and reading the configuration file.
 
 ## Default command
 

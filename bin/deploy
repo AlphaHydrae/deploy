@@ -26,34 +26,13 @@ COLOR_CYAN=36
 DEPLOY_ARGS=("$@")
 DEPLOY_COMMAND=
 DEPLOY_ENV=
-DEPLOY_OPTIONS=()
-DEPLOY_OPTIONS_MAP=''
+DEPLOY_OPTIONS_VALUE_MAP=''
 
-DEPLOY_COLOR=auto
-DEPLOY_CONFIG=./deploy.conf
-DEPLOY_UPDATE_PREFIX=/usr/local
-DEPLOY_UPDATE_REPO=https://github.com/AlphaHydrae/deploy.git
-DEPLOY_UPDATE_REV=master
-
-DEPLOY_SHORT_OPTIONS_MAP=$(cat <<-END
-A:forward-agent
-C:chdir
-c:config
-f:force
-h:help
-H:host
-i:identity
-k:keep
-P:path
-p:port
-r:repo
-t:tty
-u:user
-V:version
-v:version
-y:yes
-END
-)
+test -z "$DEPLOY_COLOR" && DEPLOY_COLOR=auto
+test -z "$DEPLOY_CONFIG" && DEPLOY_CONFIG=./deploy.conf
+test -z "$DEPLOY_UPDATE_PREFIX" && DEPLOY_UPDATE_PREFIX=/usr/local
+test -z "$DEPLOY_UPDATE_REPO" && DEPLOY_UPDATE_REPO=https://github.com/AlphaHydrae/deploy.git
+test -z "$DEPLOY_UPDATE_REV" && DEPLOY_UPDATE_REV=master
 
 # ## Usage
 #
@@ -121,9 +100,9 @@ usage() {
 
   General options:
 
-    -C, --chdir <path>    change the working directory
+    -C, --chdir <dir>     change the working directory
     --color <mode>        set color mode to "always", "never" or "auto" (defaults to "auto")
-    -c, --config <path>   set config file path (defaults to ./deploy.conf)
+    -c, --config <file>   set config file path (defaults to ./deploy.conf)
     -y, --yes             accept all confirmation prompts (use with caution)
     -v, -V, --version     output current version
     -h, --help            output usage information
@@ -214,7 +193,7 @@ command_exists() {
 # ## Configuration file
 #
 # **deploy** reads its main configuration from a `deploy.conf` file in the current directory.
-# It can also be customized with [environment variables and command line options](#command-line-options).
+# It can also be customized with [environment variables and command line options](#command-line-options-environment-variables).
 config_file_exists() {
   test -f "$DEPLOY_CONFIG" && test -r "$DEPLOY_CONFIG"
 }
@@ -500,9 +479,6 @@ run_hooks() {
 #   (so that 2 old releases and the new one being deployed, 3 in total, remain).
 #
 #   It's also possible to manually trigger cleanup with the [cleanup](#cleanup) command.
-validate_keep() {
-  test -z "$DEPLOY_KEEP" || [[ "$DEPLOY_KEEP" == "all" ]] || [[ "$DEPLOY_KEEP" =~ ^[1-9][0-9]*$ ]] || abort "keep must be \"all\" or a positive integer greater than zero"
-}
 
 # ### SSH connection
 #
@@ -512,7 +488,7 @@ build_ssh_command() {
   # * **`host <address>`** (or the `$DEPLOY_HOST` variable) is mandatory for all environments.
   #   It indicates which host or IP address to connect to.
   local host=$(get_last_config_key_value host)
-  test -n "$host" || abort "host not configured"
+  require_options host
 
   local url=$host
 
@@ -592,7 +568,7 @@ build_export_env_command() {
 #     export YEAR=$(date "+%Y")
 #
 # (Note that if you use the `-C, --chdir` command line option or the `$DEPLOY_CHDIR` variable,
-# the `.env` file is read *after* the working directory is set, so setting `$DEPLOY_CHDIR`
+# the `.env` file is read *after* the working directory is changed, so setting `$DEPLOY_CHDIR`
 # in the file has no effect.)
 load_env_file() {
   test -f .env && { test -r .env || abort "environment file .env is not readable"; }
@@ -617,6 +593,115 @@ load_env_file() {
 # * The command line option (e.g. `-r, --repo <url>`) always takes precedence if specified.
 # * Next, the environment variable (e.g. `$DEPLOY_REPO`) takes precedence over the configuration file.
 # * Otherwise, the value in the configuration file (e.g. `repo`) is used.
+
+DEPLOY_OPTIONS_MAP=(
+
+# ### General options
+#
+# These options are valid for most sub-commands:
+
+# * **`-C, --chdir <dir>`** (or the `$DEPLOY_CHDIR` variable) changes **deploy**'s *local* working directory before loading the configuration file.
+C:chdir:dir
+
+# * **`--color always|never|auto`** (or the `$DEPLOY_COLOR` variable) enables/disables colors in the output of the script.
+#
+#   This defaults to `auto`, which only enables colors if the current terminal is interactive.
+:color:mode
+
+# * **`-c, --config <file>`** (or the `$DEPLOY_CONFIG` variable) allows you to set a custom path for the configuration file (defaults to `./deploy.conf`).
+c:config:path
+
+# * **`--help`** prints usage information and exits.
+h:help
+
+# * **`-v, -V, --version`** prints the current version and exits.
+V:version
+v:version
+
+# * **`-y, --yes`** (or the `$DEPLOY_YES` variable) will automatically accept all confirmation prompts
+#   (only valid for the `rev`, `cleanup` and `update` sub-commands).
+#
+#   **Use with caution:** old releases may be deleted with the `rev` or `cleanup` sub-commands if a [`keep` option](#keep) is configured.
+y:yes
+
+# ### Project options
+#
+# These options configure where and how the project is deployed on the remote host:
+
+# * **`-r, --repo <url>`** (or the `$DEPLOY_REPO` variable) sets the Git URL to fetch the project's source code from when deploying.
+r:repo:url
+
+# * **`-P, --path <dir>`** sets the remote path to deploy the project to on the host
+#   (this is the path to the directory managed by **deploy**, not to the current release).
+P:path:dir
+
+# * **`-k, --keep <n>`** (or the `$DEPLOY_KEEP` variable) changes the number of old releases that are kept
+#   after successful deployment (see the [`keep` option](#keep)).
+k:keep:n
+
+# * **`-f, --force`** (or the `$DEPLOY_FORCE` variable) forces deployment to proceed even when you have uncommitted changes.
+f:force
+
+# ### SSH options
+#
+# These options are valid for all commands which connect to the remote host through SSH
+# (`setup`, `rev`, `console`, `exec`, `list` and `cleanup`):
+
+# * **`-A, --forward-agent`** (or the `$DEPLOY_FORWARD_AGENT` variable) enables forwarding of the authentication agent connection.
+#
+#   **Use with caution.**
+#   Users with the ability to bypass file permissions on the remote host (for the agent's UNIX-domain socket)
+#   can access the local agent through the forwarded connection.
+#   An attacker cannot obtain key material from the agent,
+#   however they can perform operations on the keys that enable them to authenticate
+#   using the identities loaded into the agent.
+A:forward-agent
+
+# * **`-H, --host <address>`** (or the `$DEPLOY_HOST` variable) sets the host to connect to.
+H:host:address
+
+# * **`-i, --identity <file>`** (or the `$DEPLOY_IDENTITY` variable) selects a file from which the identity (private key)
+#   for public key authentication is read.
+#
+#   The default is `~/.ssh/id_dsa`, `~/.ssh/id_ecdsa`, `~/.ssh/id_ed25519` and `~/.ssh/id_rsa`.
+i:identity:file
+
+# * **`-p, --port <n>`** (or the `$DEPLOY_PORT` variable) sets the port to connect to.
+p:port:n
+
+# * **`-t, --tty`** (or the `$DEPLOY_TTY` variable) forces pseudo-terminal allocation.
+#
+#   This can be used to execute arbitrary screen-based programs on a remote machine,
+#   which can be very useful, e.g. when implementing menu services.
+t:tty
+
+# * **`-u, --user <name>`** (or the `$DEPLOY_USER` variable) sets the remote user to connect as.
+u:user:name
+
+# ### Self-update options
+#
+# These options can be used by **deploy** to update itself with the `update` sub-command:
+
+# * **`--update-path <file>`** (or the `$DEPLOY_UPDATE_PATH` variable) sets the path to save the updated script when using the **update** command.
+#
+#   This overrides the `--update-prefix` or `$DEPLOY_UPDATE_PREFIX` options.
+:update-path:file
+
+# * **`--update-prefix <dir>`** (or the `$DEPLOY_UPDATE_PREFIX` variable) sets the base directory when using the **update** command.
+#
+#   The updated script will be saved in `bin/deploy` relative to this path.
+#   (Note that setting `--update-path` or `$DEPLOY_UPDATE_PATH` overrides this option.)
+:update-prefix:dir
+)
+
+# ## Command line options format
+#
+# Note that all of **deploy**'s command line options can be used anywhere in a command.
+# The following 3 commands are equivalent:
+#
+# * `deploy -u deploy production --keep 3 --yes master`
+# * `deploy -u deploy --keep 3 --yes production master`
+# * `deploy production master -u deploy --keep 3 --yes`
 parse_script_options() {
 
   local i=0
@@ -629,152 +714,107 @@ parse_script_options() {
       continue
     fi
 
-    local value="$(script_arg $((i+1)))"
-    local has_value=
+    local option_name=
+    local option_value=
+    local option_args_count=1
 
-    case $option in
+    # ### Short option format
+    #
+    # Some options have a short form which may be specified with **one hyphen**,
+    # e.g. `-h` to display usage or `-f` to force deployment with uncommitted local changes.
+    if [[ "$option" =~ ^-[a-zA-Z](=..*)?$ ]]; then
+      option_name="$(get_option_name "${option:0:2}")"
+      # If a short option takes a value, it may be provided either as the next argument
+      # (e.g. `-k 5`) or with an equal sign (e.g. `-k=5`).
+      if [[ "$option" =~ ^..= ]]; then
+        option_value="${option:3}"
+      fi
 
-      # ### General options
+    # ### Long option format
+    #
+    # All options have a long form which may be specified with **two hyphens**,
+    # e.g. `--help` or `--force`.
+    elif [[ "$option" =~ ^--[a-zA-Z][a-zA-Z]*(-[a-zA-Z][a-zA-Z]*)*(=..*)?$ ]]; then
+      local long_option="$(echo "$option"|sed 's/=.*$//')"
+      option_name="$(get_option_name "$long_option")"
+      # If a long option takes a value, it may be provided either as the next argument
+      # (e.g. `--keep 5`) or with an equal sign (e.g. `--keep=5`).
+      if [[ "$option" =~ ^[^=]*= ]]; then
+        option_value="$(echo "$option"|sed 's/^[^=]*=//')"
+      fi
+    else
+
+      # ### Invalid options
       #
-      # These options are valid for most sub-commands:
-
-      # * **`-C, --chdir <dir>`** (or the `$DEPLOY_CHDIR` variable) changes **deploy**'s *local* working directory before loading the configuration file.
-      -C|--chdir) has_value=1 ;;
-
-      # * **`--color always|never|auto`** (or the `$DEPLOY_COLOR` variable) enables/disables colors in the output of the script.
+      # The following errors will cause the script to be interrupted and print an error:
       #
-      #   This defaults to `auto`, which only enables colors if the current terminal is interactive.
-      --color) has_value=1 ;;
+      # * Badly formatted or unknown options (e.g. `---foo`, `-bar`, `--baz`).
+      abort "unsupported option format '$option'"
+    fi
 
-      # * **`-c, --config <path>`** (or the `$DEPLOY_CONFIG` variable) allows you to set a custom path for the configuration file (defaults to `./deploy.conf`).
-      -c|--config) has_value=1 ;;
+    local option_arity="$(get_option_arity "$option_name")"
+    if test $option_arity -lt 0 || test $option_arity -gt 1; then
+      abort "option arity $option_arity is not supported"
+    # * Options that take no value specified with a value (e.g. `--help=3`).
+    elif test -n "$option_value" && test $option_arity -eq 0; then
+      abort "option $(describe_option "$option_name") does not take a value"
+    elif test -z "$option_value" && test $option_arity -eq 1; then
+      option_value="$(script_arg $((i+1)))"
+      option_args_count=2
+    elif test -z "$option_value" && test $option_arity -eq 0; then
+      option_value=1
+    fi
 
-      # * **`--help`** prints usage information and exits.
-      -h|--help) usage; echo; exit 0 ;;
+    # * Options that take a value specified without their value.
+    test -z "$option_value" && test $option_arity -ge 1 \
+      && abort "option $(describe_option "$option_name") requires a value"
 
-      # * **`-v, -V, --version`** prints the current version and exits.
-      -v|-V|--version) echo $VERSION; exit 0 ;;
+    if [[ "$option_name" == "help" ]]; then
+      usage; exit 0
+    elif [[ "$option_name" == "version" ]]; then
+      echo $VERSION; exit 0
+    fi
 
-      # * **`-y, --yes`** (or the `$DEPLOY_YES` variable) will automatically accept all confirmation prompts
-      #   (only valid for the `rev`, `cleanup` and `update` sub-commands).
-      #
-      #   **Use with caution:** old releases may be deleted with the `rev` or `cleanup` sub-commands if a [`keep` option](#keep) is configured.
-      -y|--yes) ;;
+    # * Duplicate options (e.g. both `-k 5` and `--keep 3`).
+    script_has_option "$option_name" && abort "option $(describe_option "$option_name") can only be given once"
+    DEPLOY_OPTIONS_VALUE_MAP="$(printf "$DEPLOY_OPTIONS_VALUE_MAP\n$option_name $option_value")"
 
-      # ### Project options
-      #
-      # These options configure where and how the project is deployed on the remote host:
-
-      # * **`-r, --repo <url>`** (or the `$DEPLOY_REPO` variable) sets the Git URL to fetch the project's source code from when deploying.
-      -r|--repo) has_value=1 ;;
-
-      # * **`-P, --path <dir>`** sets the remote path to deploy the project to on the host
-      #   (this is the path to the directory managed by **deploy**, not to the current release).
-      -P|--path) has_value=1 ;;
-
-      # * **`-k, --keep <n>`** (or the `$DEPLOY_KEEP` variable) changes the number of old releases that are kept
-      #   after successful deployment (see the [`keep` option](#keep)).
-      -k|--keep) has_value=1 ;;
-
-      # * **`-f, --force`** (or the `$DEPLOY_FORCE` variable) forces deployment to proceed even when you have uncommitted changes.
-      -f|--force) ;;
-
-      # ### SSH options
-      #
-      # These options are valid for all commands which connect to the remote host through SSH
-      # (`setup`, `rev`, `console`, `exec`, `list` and `cleanup`):
-
-      # * **`-A, --forward-agent`** (or the `$DEPLOY_FORWARD_AGENT` variable) enables forwarding of the authentication agent connection.
-      #
-      #   **Use with caution.**
-      #   Users with the ability to bypass file permissions on the remote host (for the agent's UNIX-domain socket)
-      #   can access the local agent through the forwarded connection.
-      #   An attacker cannot obtain key material from the agent,
-      #   however they can perform operations on the keys that enable them to authenticate
-      #   using the identities loaded into the agent.
-      -A|--forward-agent) ;;
-
-      # * **`-H, --host <address>`** (or the `$DEPLOY_HOST` variable) sets the host to connect to.
-      -H|--host) has_value=1 ;;
-
-      # * **`-i, --identity <file>`** (or the `$DEPLOY_IDENTITY` variable) selects a file from which the identity (private key)
-      #   for public key authentication is read.
-      #
-      #   The default is `~/.ssh/id_dsa`, `~/.ssh/id_ecdsa`, `~/.ssh/id_ed25519` and `~/.ssh/id_rsa`.
-      -i|--identity) has_value=1 ;;
-
-      # * **`-p, --port <n>`** (or the `$DEPLOY_PORT` variable) sets the port to connect to.
-      -p|--port) has_value=1 ;;
-
-      # * **`-t, --tty`** (or the `$DEPLOY_TTY` variable) forces pseudo-terminal allocation.
-      #
-      #   This can be used to execute arbitrary screen-based programs on a remote machine,
-      #   which can be very useful, e.g. when implementing menu services.
-      -t|--tty) ;;
-
-      # * **`-u, --user <name>`** (or the `$DEPLOY_USER` variable) sets the remote user to connect as.
-      -u|--user) has_value=1 ;;
-
-      # ### Self-update options
-      #
-      # These options can be used by **deploy** to update itself with the `update` sub-command:
-
-      # * **`--update-path`** (or the `$DEPLOY_UPDATE_PATH` variable) sets the path to save the updated script when using the **update** command.
-      #
-      #   This overrides the `--update-prefix` or `$DEPLOY_UPDATE_PREFIX` options.
-      --update-path) has_value=1 ;;
-
-      # * **`--update-prefix`** (or the `$DEPLOY_UPDATE_PREFIX` variable) sets the base directory when using the **update** command.
-      #
-      #   The updated script will be saved in `bin/deploy` relative to this path.
-      #   (Note that setting `--update-path` or `$DEPLOY_UPDATE_PATH` overrides this option.)
-      --update-prefix) has_value=1 ;;
-
-      *) usage; abort "unknown option '$option'"
-    esac
-
-    local long_option="$(get_long_option "$option")"
-    script_has_option "$long_option" && abort "option $(describe_option "$long_option") must only be given once"
-
-    DEPLOY_OPTIONS+=("$long_option")
-
-    test -z "$has_value" && value=1
-    DEPLOY_OPTIONS_MAP="$(printf "$DEPLOY_OPTIONS_MAP\n$long_option $value")"
-
-    test -z "$has_value" && script_remove_args $i || script_remove_args $i 2
+    script_remove_args $i $option_args_count
   done
 }
 
 apply_script_options() {
 
   local options="$@"
-  test -z "$options" && options="$(echo "$DEPLOY_OPTIONS_MAP"|cut -d ' ' -f 1|tr '\n' ' ')"
+  test -z "$options" && options="$(echo "$DEPLOY_OPTIONS_VALUE_MAP"|cut -d ' ' -f 1|tr '\n' ' ')"
 
   for option in $options; do
-    local variable_name="DEPLOY_$(echo "$option"| tr '-' '_'|tr '[a-z]' '[A-Z]')"
-    local variable_value="$(echo "$DEPLOY_OPTIONS_MAP"|grep "^${option} "|cut -d ' ' -f 2-999)"
+    local variable_name="$(get_config_key_env_var "$option")"
+    local variable_value="$(echo "$DEPLOY_OPTIONS_VALUE_MAP"|grep "^${option} "|cut -d ' ' -f 2-999)"
     export $variable_name="$variable_value"
   done
 }
 
-# Note that command line options can be used anywhere in a **deploy** command.
-# The following 3 commands are equivalent:
-#
-# * `deploy -u deploy production --keep 3 --yes master`
-# * `deploy -u deploy --keep 3 --yes production master`
-# * `deploy production master -u deploy --keep 3 --yes`
 main() {
   parse_script_options
-  apply_script_options chdir
 
-  test -n "$DEPLOY_CHDIR" && change_working_directory "$DEPLOY_CHDIR"
+  # ### Changing the working directory
+  #
+  # By default, **deploy** looks in the current directory to find its configuration file
+  # and optional environment files. This can be customized by setting the `-c, --chdir <dir>`
+  # command line option or the `$DEPLOY_CHDIR` variable.
+  #
+  # If this option is set, **deploy** will first move to that directory before sourcing
+  # the environment files and reading the configuration file.
+  apply_script_options chdir
+  validate_working_directory
+  test -n "$DEPLOY_CHDIR" && cd "$DEPLOY_CHDIR"
   load_env_file
 
   apply_script_options
-  check_config_file_valid "$DEPLOY_CONFIG"
 
   local subcommand=
-  while test -z "$subcommand"; do
+  while script_has_args && test -z "$subcommand"; do
     DEPLOY_COMMAND="$(script_arg)"
     case "$DEPLOY_COMMAND" in
       exec) subcommand=exec_remote_command ;;
@@ -819,21 +859,6 @@ main() {
   $subcommand
 }
 
-change_working_directory() {
-  local dir="$1"
-  test -e "$dir" || abort "invalid working directory: '$dir' does not exist"
-  test -d "$dir" || abort "invalid working directory: '$dir' is not a directory"
-  test -x "$dir" || abort "invalid working directory: '$dir' cannot be accessed"
-  cd "$dir"
-}
-
-check_config_file_valid() {
-  local file="$1"
-  test -e "$file" || abort "invalid config file: $file does not exist"
-  test -f "$file" || abort "invalid config file: $file is not a file"
-  test -r "$file" || abort "invalid config file: $file cannot be read"
-}
-
 
 
 
@@ -854,7 +879,7 @@ require_env() {
 }
 
 require_config() {
-  check_config_file_valid "$DEPLOY_CONFIG"
+  validate_config_file
 }
 
 require_no_args() {
@@ -863,6 +888,25 @@ require_no_args() {
     test $(script_arg_count) -ne 1 && message="${message}s"
     abort "$message found: ${DEPLOY_ARGS[@]}"
   fi
+}
+
+require_options() {
+  local option_names="$@"
+  for option_name in $option_names; do
+
+    local option_value=$(get_last_config_key_value "$option_name")
+    test -n "$option_value" && continue
+
+    log_error
+    log_error "The '$option_name' option is required by the '$DEPLOY_COMMAND' command."
+    log_error "Configure it one of the following ways:"
+    log_error
+    log_error "* Add the '$option_name' key to the [$DEPLOY_ENV] section of the $DEPLOY_CONFIG configuration file."
+    log_error "* Set the \$$(get_config_key_env_var "$option_name") environment variable."
+    log_error "* Add the $(describe_option "$option_name") command line option to the command."
+
+    abort "$DEPLOY_COMMAND interrupted"
+  done
 }
 
 # <a name="setup"></a>
@@ -888,15 +932,11 @@ require_no_args() {
 set_up_host() {
   require_env
   require_no_args
-  whitelist_deploy_options repo
+  validate_deploy_options repo
+  require_options path repo
 
-  local host="$(get_last_config_key_value host)"
   local path="$(get_last_config_key_value path)"
   local repo="$(get_last_config_key_value repo)"
-
-  test -n "$host" || abort "host not configured"
-  test -n "$path" || abort "path not configured"
-  test -n "$repo" || abort "repo not configured"
 
   # * Run user-defined `pre-setup` hooks (if any).
   run_hooks pre-setup "$path"
@@ -940,7 +980,8 @@ deploy_rev() {
   test -n "$rev" || abort "no commit, branch or tag specified"
 
   require_no_args
-  whitelist_deploy_options force keep yes
+  validate_deploy_options force keep yes
+  require_options path
 
   # For each deployment, a new release directory will be created in `releases` in the deployment directory.
   # The name of a release directory is the current date and time in the `YYYY-MM-DD-HH-MM-SS` format.
@@ -951,8 +992,6 @@ deploy_rev() {
   local release_dir="$path/releases/$release"
   local tmp_dir="$path/tmp"
   local keep=$(get_last_config_key_value keep)
-
-  validate_keep
 
   # Note that **deploy** will refuse to deploy unless all your local changes are committed and pushed.
   # You can override this behavior with the `-f|--force` option (or the `$DEPLOY_FORCE` variable).
@@ -969,7 +1008,10 @@ deploy_rev() {
   local get_current_release_dir_command="readlink $path/current"
   log_command "$get_current_release_dir_command"
 
-  local current_release_dir="$(run_no_log "$get_current_release_dir_command")"
+  local current_release_dir
+  current_release_dir="$(run_no_log "$get_current_release_dir_command" 2>&1)"
+  test $? -ne 0 && test -n "$current_release_dir" && abort "$current_release_dir"
+
   if test -n "$current_release_dir"; then
     log_color $COLOR_CYAN "$current_release_dir"
   else
@@ -1055,7 +1097,7 @@ print_config_or_value() {
   #   port 222
   #   ```
   if ! script_has_args; then
-    whitelist_default_options
+    validate_default_options
     test -z "$DEPLOY_ENV" || abort "this commands only supports both [env] and [key] arguments or neither"
     require_config
     cat "$DEPLOY_CONFIG"
@@ -1075,7 +1117,8 @@ print_config_or_value() {
     script_shift
     require_env
     require_no_args
-    whitelist_default_options
+    validate_default_options
+    require_config
 
     local value=$(get_last_config_key_value "$key")
     test -n "$value" && echo "$value"
@@ -1100,7 +1143,8 @@ print_config_values() {
   local key="$(script_arg)"
   script_shift
   require_no_args
-  whitelist_default_options
+  validate_default_options
+  require_config
 
   test -n "$key" || abort "<key> missing"
 
@@ -1116,7 +1160,8 @@ print_config_values() {
 # Exits with status 1 if the config section is not found (including the default one).
 print_config_section() {
   require_no_args
-  whitelist_default_options
+  validate_default_options
+  require_config
   config_section_exists "$DEPLOY_ENV" && get_config_section "$DEPLOY_ENV"
 }
 
@@ -1134,7 +1179,7 @@ open_remote_console() {
   local path="$(script_arg)"
   script_shift
   require_no_args
-  whitelist_deploy_options
+  validate_deploy_options
 
   # * If **no path** is specified, the session starts in the deployment directory.
   #
@@ -1142,6 +1187,7 @@ open_remote_console() {
   #   deploy production console
   #   ```
   if test -z "$path"; then
+    require_options path
     path="$(get_last_config_key_value path)"
 
   # * If a **relative path** is specified, it starts there relative to the deployment directory.
@@ -1150,12 +1196,16 @@ open_remote_console() {
   #   deploy production console current
   #   ```
   elif [[ ! "$path" =~ ^\/ ]]; then
+    require_options path
     path="$(get_last_config_key_value path)/$path"
   fi
 
   test -n "$path" || abort "path is required"
 
-  local shell="`build_ssh_command`"
+  local shell
+  shell="$(build_ssh_command 2>&1)"
+  test $? -eq 0 || abort "$shell"
+
   log_command "$shell -t \"cd $path; \$SHELL -il\""
   $shell -t "cd $path; \$SHELL -il"
 }
@@ -1173,11 +1223,10 @@ open_remote_console() {
 clean_up_old_releases() {
   require_env
   require_no_args
-  whitelist_deploy_options keep yes
+  validate_deploy_options keep yes
+  require_options path
 
   local keep=$(get_last_config_key_value keep)
-
-  validate_keep
 
   log cleaning up
   echo "    keep: ${keep:-all}"
@@ -1203,7 +1252,8 @@ clean_up_old_releases() {
 # ```
 exec_remote_command() {
   require_env
-  whitelist_deploy_options
+  validate_deploy_options
+  require_options path
   local path="$(get_last_config_key_value path)"
   run "cd $path && $(build_export_env_command) && ${DEPLOY_ARGS[@]}"
 }
@@ -1223,7 +1273,8 @@ exec_remote_command() {
 list_releases() {
   require_env
   require_no_args
-  whitelist_deploy_options
+  validate_deploy_options
+  require_options path
 
   local path=`get_last_config_key_value path`
   local releases_path="$path/releases"
@@ -1274,11 +1325,12 @@ update_self() {
 
   if script_has_args; then
     DEPLOY_UPDATE_REV="$(script_arg)"
+    script_shift
   fi
 
   test -z "$DEPLOY_ENV" || abort "environment not supported for this command"
   require_no_args
-  whitelist_options color update-path update-prefix yes
+  validate_update_options
 
   # In addition to the basic requirements, this sub-command also requires `chmod`, `cp` and `mktemp` to be available in the shell.
   for com in chmod cp mktemp; do
@@ -1494,7 +1546,8 @@ delete_old_releases() {
 #
 # **deploy** will log various messages indicating what it is doing.
 
-# Those messages are printed in colors by default on interactive terminals (this can be disabled with the `--color never` option or `$DEPLOY_COLOR` variable).
+# Those messages are printed in colors by default on interactive terminals
+# (this can be disabled with the `--color never` option or `$DEPLOY_COLOR` variable).
 echo_color() {
   if test -z "$COLORS"; then
     if [ "$DEPLOY_COLOR" == "always" ]; then
@@ -1550,14 +1603,13 @@ log_success() {
 
 # * **Errors** will be printed in red.
 log_error() {
-  echo_color $COLOR_RED "$@" 1>&2
+  echo_color $COLOR_RED "$@"|sed 's/^ *//'|sed 's/^/  /' 1>&2
 }
 
 # If **deploy** encounters an unrecoverable error, it will log an error and exit with status 1.
 abort() {
-  local message="$(echo "$@"|sed 's/^ *//'|sed 's/^/  /')"
   echo
-  log_error "$message"
+  log_error "$@"
   echo
   exit 1
 }
@@ -1589,13 +1641,11 @@ script_has_args() {
 }
 
 script_has_option() {
-  local option="$1"
-  for actual_option in "${DEPLOY_OPTIONS[@]}"; do
-    if [[ "$option" == "$actual_option" ]]; then
-      return 0
-    fi
-  done
-  return 1
+  value_is_in "$1" "$(script_option_names)"
+}
+
+script_option_names() {
+  echo "$DEPLOY_OPTIONS_VALUE_MAP"|sed 's/ .*$//'|tr '\n' ' '
 }
 
 script_shift() {
@@ -1617,40 +1667,127 @@ script_remove_args() {
   DEPLOY_ARGS=("${DEPLOY_ARGS[@]:0:$slice_index}" "${DEPLOY_ARGS[@]:$rest_index:$rest_length}")
 }
 
-get_long_option() {
-  local option="$1"
-  if [[ "$option" =~ ^-[A-Za-z]$ ]]; then
-    local letter="$(echo "$option"|sed 's/^-//')"
-    echo "$DEPLOY_SHORT_OPTIONS_MAP"|grep "^${letter}:"|sed 's/^.*://'
+get_option_arity() {
+  local option_name="$1"
+  local arity="$(get_option_properties "$option_name"|cut -d ':' -f 3 -s)"
+  test -n "$arity" && echo 1 || echo 0
+}
+
+get_option_name() {
+  local short_or_long_option="$1"
+  if [[ "$short_or_long_option" =~ ^-?[A-Za-z]$ ]]; then
+    local letter="$(echo "$short_or_long_option"|sed 's/^-//')"
+    echo "${DEPLOY_OPTIONS_MAP[@]}"|tr ' ' '\n'|grep "^${letter}:"|sed 's/^[^:]*://'|sed 's/:.*$//'
   else
-    echo "$option"|sed 's/^-*//'
+    echo "$short_or_long_option"|sed 's/^-*//'
   fi
 }
 
+get_option_properties() {
+  local option_name="$1"
+  echo "${DEPLOY_OPTIONS_MAP[@]}"|tr ' ' '\n'|grep -E "^[a-zA-Z]?:${option_name}(:|$)"
+}
+
 describe_option() {
-  local option="$1"
-  local short_option="$(echo "$DEPLOY_SHORT_OPTIONS_MAP"|grep ":${option}$"|sed 's/:.*$//')"
-  test -z "$short_option" && echo "--$option" || echo "-$short_option, --$option"
+
+  local option_name="$1"
+  local description="--$option_name"
+
+  local short_option_letter="$(get_option_properties "$option_name"|sed 's/:.*$//')"
+  test -n "$short_option_letter" && description="-$short_option_letter, $description"
+
+  local option_value_name="$(get_option_properties "$option_name"|cut -d ':' -f 3 -s)"
+  test -n "$option_value_name" && description="$description <$option_value_name>"
+
+  echo "$description"
+}
+
+value_is_in() {
+
+  local value="$1"
+  shift
+  local args="$@"
+
+  for arg in $args; do
+    if [[ "$arg" == "$value" ]]; then
+      return 0
+    fi
+  done
+
+  return 1
+}
+
+validate_color() {
+  local color="$DEPLOY_COLOR"
+  [[ "$color" =~ ^(always|never|auto)$ ]] \
+    || abort "invalid color option '$color': allowed values are always, never or auto"
+}
+
+validate_config_file() {
+  local file="$DEPLOY_CONFIG"
+  test -e "$file" || abort "invalid config file: $file does not exist"
+  test -f "$file" || abort "invalid config file: $file is not a file"
+  test -r "$file" || abort "invalid config file: $file cannot be read"
+}
+
+validate_identity_file() {
+  local file="$(get_last_config_key_value identity)"
+  test -z "$file" && return
+  test -e "$file" || abort "invalid identity file: $file does not exist"
+  test -f "$file" || abort "invalid identity file: $file is not a file"
+  test -r "$file" || abort "invalid identity file: $file cannot be read"
+}
+
+validate_keep() {
+  local keep="$(get_last_config_key_value keep)"
+  test -z "$keep" \
+    || [[ "$keep" == "all" ]] \
+    || [[ "$keep" =~ ^[1-9][0-9]*$ ]] \
+    || abort "keep must be \"all\" or a positive integer greater than zero"
+}
+
+validate_port_number() {
+  local port="$(get_last_config_key_value port)"
+  test -z "$port" \
+    || { [[ "$port" =~ ^[1-9][0-9]*$ ]] && test $port -ge 0 && test $port -le 65535; } \
+    || abort "port must be an integer between 0 and 65535"
+}
+
+validate_working_directory() {
+  local dir="$DEPLOY_CHDIR"
+  test -z "$dir" && return
+  test -e "$dir" || abort "invalid working directory: '$dir' does not exist"
+  test -d "$dir" || abort "invalid working directory: '$dir' is not a directory"
+  test -x "$dir" || abort "invalid working directory: '$dir' cannot be accessed"
+}
+
+validate_options() {
+  whitelist_options "$@"
+  value_is_in color "$@" && validate_color
+  value_is_in config "$@" && validate_config_file
+  value_is_in identity "$@" && validate_identity_file
+  value_is_in keep "$@" && validate_keep
+  value_is_in port "$@" && validate_port_number
+}
+
+validate_default_options() {
+  validate_options chdir color config "$@"
+}
+
+validate_deploy_options() {
+  validate_default_options forward-agent host identity path port tty user "$@"
+}
+
+validate_update_options() {
+  validate_options color update-path update-prefix yes
 }
 
 whitelist_options() {
-  for option in "${DEPLOY_OPTIONS[@]}"; do
-
-    local allowed=
-    for allowed_option in "$@"; do
-      [[ "$option" == "$allowed_option" ]] && allowed=1 && break
-    done
-
-    test -n "$allowed" || abort "option '$(describe_option "$option")' is not applicable to command '$DEPLOY_COMMAND'"
+  local allowed_options="$@"
+  for option_name in $(script_option_names); do
+    value_is_in "$option_name" "$allowed_options" \
+      || abort "option $(describe_option "$option_name") is not applicable to command '$DEPLOY_COMMAND'"
   done
-}
-
-whitelist_default_options() {
-  whitelist_options chdir color config "$@"
-}
-
-whitelist_deploy_options() {
-  whitelist_default_options forward-agent host identity path port tty user "$@"
 }
 
 main $@

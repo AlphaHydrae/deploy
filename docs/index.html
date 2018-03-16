@@ -67,34 +67,13 @@ COLOR_CYAN=36
 DEPLOY_ARGS=(<span class="hljs-string">"<span class="hljs-variable">$@</span>"</span>)
 DEPLOY_COMMAND=
 DEPLOY_ENV=
-DEPLOY_OPTIONS=()
-DEPLOY_OPTIONS_MAP=<span class="hljs-string">''</span>
+DEPLOY_OPTIONS_VALUE_MAP=<span class="hljs-string">''</span>
 
-DEPLOY_COLOR=auto
-DEPLOY_CONFIG=./deploy.conf
-DEPLOY_UPDATE_PREFIX=/usr/<span class="hljs-built_in">local</span>
-DEPLOY_UPDATE_REPO=https://github.com/AlphaHydrae/deploy.git
-DEPLOY_UPDATE_REV=master
-
-DEPLOY_SHORT_OPTIONS_MAP=$(cat &lt;&lt;-END
-A:forward-agent
-C:<span class="hljs-built_in">chdir</span>
-c:config
-f:force
-h:<span class="hljs-built_in">help</span>
-H:host
-i:identity
-k:keep
-P:path
-p:port
-r:repo
-t:tty
-u:user
-V:version
-v:version
-y:yes
-END
-)</pre></div></div>
+<span class="hljs-built_in">test</span> -z <span class="hljs-string">"<span class="hljs-variable">$DEPLOY_COLOR</span>"</span> &amp;&amp; DEPLOY_COLOR=auto
+<span class="hljs-built_in">test</span> -z <span class="hljs-string">"<span class="hljs-variable">$DEPLOY_CONFIG</span>"</span> &amp;&amp; DEPLOY_CONFIG=./deploy.conf
+<span class="hljs-built_in">test</span> -z <span class="hljs-string">"<span class="hljs-variable">$DEPLOY_UPDATE_PREFIX</span>"</span> &amp;&amp; DEPLOY_UPDATE_PREFIX=/usr/<span class="hljs-built_in">local</span>
+<span class="hljs-built_in">test</span> -z <span class="hljs-string">"<span class="hljs-variable">$DEPLOY_UPDATE_REPO</span>"</span> &amp;&amp; DEPLOY_UPDATE_REPO=https://github.com/AlphaHydrae/deploy.git
+<span class="hljs-built_in">test</span> -z <span class="hljs-string">"<span class="hljs-variable">$DEPLOY_UPDATE_REV</span>"</span> &amp;&amp; DEPLOY_UPDATE_REV=master</pre></div></div>
             
         </li>
         
@@ -167,9 +146,9 @@ deploy production rev master
 
   General options:
 
-    -C, --<span class="hljs-built_in">chdir</span> &lt;path&gt;    change the working directory
+    -C, --<span class="hljs-built_in">chdir</span> &lt;dir&gt;     change the working directory
     --color &lt;mode&gt;        <span class="hljs-built_in">set</span> color mode to <span class="hljs-string">"always"</span>, <span class="hljs-string">"never"</span> or <span class="hljs-string">"auto"</span> (defaults to <span class="hljs-string">"auto"</span>)
-    -c, --config &lt;path&gt;   <span class="hljs-built_in">set</span> config file path (defaults to ./deploy.conf)
+    -c, --config &lt;file&gt;   <span class="hljs-built_in">set</span> config file path (defaults to ./deploy.conf)
     -y, --yes             accept all confirmation prompts (use with caution)
     -v, -V, --version     output current version
     -h, --<span class="hljs-built_in">help</span>            output usage information
@@ -279,7 +258,7 @@ Most bash shells have all of those out of the box except perhaps <a href="https:
               </div>
               <h2 id="configuration-file">Configuration file</h2>
 <p><strong>deploy</strong> reads its main configuration from a <code>deploy.conf</code> file in the current directory.
-It can also be customized with <a href="#command-line-options">environment variables and command line options</a>.</p>
+It can also be customized with <a href="#command-line-options-environment-variables">environment variables and command line options</a>.</p>
 
             </div>
             
@@ -683,10 +662,6 @@ For example, with <code>keep</code> set to 3, if there are 5 old releases deploy
 
             </div>
             
-            <div class="content"><div class='highlight'><pre><span class="hljs-function"><span class="hljs-title">validate_keep</span></span>() {
-  <span class="hljs-built_in">test</span> -z <span class="hljs-string">"<span class="hljs-variable">$DEPLOY_KEEP</span>"</span> || [[ <span class="hljs-string">"<span class="hljs-variable">$DEPLOY_KEEP</span>"</span> == <span class="hljs-string">"all"</span> ]] || [[ <span class="hljs-string">"<span class="hljs-variable">$DEPLOY_KEEP</span>"</span> =~ ^[1-9][0-9]*$ ]] || abort <span class="hljs-string">"keep must be \"all\" or a positive integer greater than zero"</span>
-}</pre></div></div>
-            
         </li>
         
         
@@ -720,7 +695,7 @@ It indicates which host or IP address to connect to.</li>
             </div>
             
             <div class="content"><div class='highlight'><pre>  <span class="hljs-built_in">local</span> host=$(get_last_config_key_value host)
-  <span class="hljs-built_in">test</span> -n <span class="hljs-string">"<span class="hljs-variable">$host</span>"</span> || abort <span class="hljs-string">"host not configured"</span>
+  require_options host
 
   <span class="hljs-built_in">local</span> url=<span class="hljs-variable">$host</span></pre></div></div>
             
@@ -952,7 +927,7 @@ This can be handy to create local variables that you can forward to the host.</p
 <span class="hljs-built_in">export</span> FOO=BAR
 <span class="hljs-built_in">export</span> YEAR=$(date <span class="hljs-string">"+%Y"</span>)
 </code></pre><p>(Note that if you use the <code>-C, --chdir</code> command line option or the <code>$DEPLOY_CHDIR</code> variable,
-the <code>.env</code> file is read <em>after</em> the working directory is set, so setting <code>$DEPLOY_CHDIR</code>
+the <code>.env</code> file is read <em>after</em> the working directory is changed, so setting <code>$DEPLOY_CHDIR</code>
 in the file has no effect.)</p>
 
             </div>
@@ -987,22 +962,8 @@ in the file has no effect.)</p>
 
             </div>
             
-            <div class="content"><div class='highlight'><pre><span class="hljs-function"><span class="hljs-title">parse_script_options</span></span>() {
-
-  <span class="hljs-built_in">local</span> i=0
-
-  <span class="hljs-keyword">while</span> <span class="hljs-built_in">test</span> <span class="hljs-variable">$i</span> -lt <span class="hljs-string">"<span class="hljs-variable">$(script_arg_count)</span>"</span>; <span class="hljs-keyword">do</span>
-
-    <span class="hljs-built_in">local</span> option=<span class="hljs-string">"<span class="hljs-variable">$(script_arg $i)</span>"</span>
-    <span class="hljs-keyword">if</span> [[ <span class="hljs-string">"<span class="hljs-variable">$option</span>"</span> != -* ]]; <span class="hljs-keyword">then</span>
-      ((i++))
-      <span class="hljs-built_in">continue</span>
-    <span class="hljs-keyword">fi</span>
-
-    <span class="hljs-built_in">local</span> value=<span class="hljs-string">"<span class="hljs-variable">$(script_arg $((i+1)</span>))"</span>
-    <span class="hljs-built_in">local</span> has_value=
-
-    <span class="hljs-keyword">case</span> <span class="hljs-variable">$option</span> <span class="hljs-keyword">in</span></pre></div></div>
+            <div class="content"><div class='highlight'><pre>
+DEPLOY_OPTIONS_MAP=(</pre></div></div>
             
         </li>
         
@@ -1033,7 +994,7 @@ in the file has no effect.)</p>
 
             </div>
             
-            <div class="content"><div class='highlight'><pre>      -C|--<span class="hljs-built_in">chdir</span>) has_value=1 ;;</pre></div></div>
+            <div class="content"><div class='highlight'><pre>C:<span class="hljs-built_in">chdir</span>:dir</pre></div></div>
             
         </li>
         
@@ -1052,7 +1013,7 @@ in the file has no effect.)</p>
 
             </div>
             
-            <div class="content"><div class='highlight'><pre>      --color) has_value=1 ;;</pre></div></div>
+            <div class="content"><div class='highlight'><pre>:color:mode</pre></div></div>
             
         </li>
         
@@ -1064,12 +1025,12 @@ in the file has no effect.)</p>
                 <a class="pilcrow" href="#section-37">&#182;</a>
               </div>
               <ul>
-<li><strong><code>-c, --config &lt;path&gt;</code></strong> (or the <code>$DEPLOY_CONFIG</code> variable) allows you to set a custom path for the configuration file (defaults to <code>./deploy.conf</code>).</li>
+<li><strong><code>-c, --config &lt;file&gt;</code></strong> (or the <code>$DEPLOY_CONFIG</code> variable) allows you to set a custom path for the configuration file (defaults to <code>./deploy.conf</code>).</li>
 </ul>
 
             </div>
             
-            <div class="content"><div class='highlight'><pre>      -c|--config) has_value=1 ;;</pre></div></div>
+            <div class="content"><div class='highlight'><pre>c:config:path</pre></div></div>
             
         </li>
         
@@ -1086,7 +1047,7 @@ in the file has no effect.)</p>
 
             </div>
             
-            <div class="content"><div class='highlight'><pre>      -h|--<span class="hljs-built_in">help</span>) usage; <span class="hljs-built_in">echo</span>; <span class="hljs-built_in">exit</span> 0 ;;</pre></div></div>
+            <div class="content"><div class='highlight'><pre>h:<span class="hljs-built_in">help</span></pre></div></div>
             
         </li>
         
@@ -1103,7 +1064,8 @@ in the file has no effect.)</p>
 
             </div>
             
-            <div class="content"><div class='highlight'><pre>      -v|-V|--version) <span class="hljs-built_in">echo</span> <span class="hljs-variable">$VERSION</span>; <span class="hljs-built_in">exit</span> 0 ;;</pre></div></div>
+            <div class="content"><div class='highlight'><pre>V:version
+v:version</pre></div></div>
             
         </li>
         
@@ -1123,7 +1085,7 @@ in the file has no effect.)</p>
 
             </div>
             
-            <div class="content"><div class='highlight'><pre>      -y|--yes) ;;</pre></div></div>
+            <div class="content"><div class='highlight'><pre>y:yes</pre></div></div>
             
         </li>
         
@@ -1154,7 +1116,7 @@ in the file has no effect.)</p>
 
             </div>
             
-            <div class="content"><div class='highlight'><pre>      -r|--repo) has_value=1 ;;</pre></div></div>
+            <div class="content"><div class='highlight'><pre>r:repo:url</pre></div></div>
             
         </li>
         
@@ -1172,7 +1134,7 @@ in the file has no effect.)</p>
 
             </div>
             
-            <div class="content"><div class='highlight'><pre>      -P|--path) has_value=1 ;;</pre></div></div>
+            <div class="content"><div class='highlight'><pre>P:path:dir</pre></div></div>
             
         </li>
         
@@ -1190,7 +1152,7 @@ after successful deployment (see the <a href="#keep"><code>keep</code> option</a
 
             </div>
             
-            <div class="content"><div class='highlight'><pre>      -k|--keep) has_value=1 ;;</pre></div></div>
+            <div class="content"><div class='highlight'><pre>k:keep:n</pre></div></div>
             
         </li>
         
@@ -1207,7 +1169,7 @@ after successful deployment (see the <a href="#keep"><code>keep</code> option</a
 
             </div>
             
-            <div class="content"><div class='highlight'><pre>      -f|--force) ;;</pre></div></div>
+            <div class="content"><div class='highlight'><pre>f:force</pre></div></div>
             
         </li>
         
@@ -1246,7 +1208,7 @@ using the identities loaded into the agent.</p>
 
             </div>
             
-            <div class="content"><div class='highlight'><pre>      -A|--forward-agent) ;;</pre></div></div>
+            <div class="content"><div class='highlight'><pre>A:forward-agent</pre></div></div>
             
         </li>
         
@@ -1263,7 +1225,7 @@ using the identities loaded into the agent.</p>
 
             </div>
             
-            <div class="content"><div class='highlight'><pre>      -H|--host) has_value=1 ;;</pre></div></div>
+            <div class="content"><div class='highlight'><pre>H:host:address</pre></div></div>
             
         </li>
         
@@ -1283,7 +1245,7 @@ for public key authentication is read.</p>
 
             </div>
             
-            <div class="content"><div class='highlight'><pre>      -i|--identity) has_value=1 ;;</pre></div></div>
+            <div class="content"><div class='highlight'><pre>i:identity:file</pre></div></div>
             
         </li>
         
@@ -1300,7 +1262,7 @@ for public key authentication is read.</p>
 
             </div>
             
-            <div class="content"><div class='highlight'><pre>      -p|--port) has_value=1 ;;</pre></div></div>
+            <div class="content"><div class='highlight'><pre>p:port:n</pre></div></div>
             
         </li>
         
@@ -1320,7 +1282,7 @@ which can be very useful, e.g. when implementing menu services.</p>
 
             </div>
             
-            <div class="content"><div class='highlight'><pre>      -t|--tty) ;;</pre></div></div>
+            <div class="content"><div class='highlight'><pre>t:tty</pre></div></div>
             
         </li>
         
@@ -1337,7 +1299,7 @@ which can be very useful, e.g. when implementing menu services.</p>
 
             </div>
             
-            <div class="content"><div class='highlight'><pre>      -u|--user) has_value=1 ;;</pre></div></div>
+            <div class="content"><div class='highlight'><pre>u:user:name</pre></div></div>
             
         </li>
         
@@ -1363,14 +1325,14 @@ which can be very useful, e.g. when implementing menu services.</p>
                 <a class="pilcrow" href="#section-54">&#182;</a>
               </div>
               <ul>
-<li><p><strong><code>--update-path</code></strong> (or the <code>$DEPLOY_UPDATE_PATH</code> variable) sets the path to save the updated script when using the <strong>update</strong> command.</p>
+<li><p><strong><code>--update-path &lt;file&gt;</code></strong> (or the <code>$DEPLOY_UPDATE_PATH</code> variable) sets the path to save the updated script when using the <strong>update</strong> command.</p>
 <p>This overrides the <code>--update-prefix</code> or <code>$DEPLOY_UPDATE_PREFIX</code> options.</p>
 </li>
 </ul>
 
             </div>
             
-            <div class="content"><div class='highlight'><pre>      --update-path) has_value=1 ;;</pre></div></div>
+            <div class="content"><div class='highlight'><pre>:update-path:file</pre></div></div>
             
         </li>
         
@@ -1382,7 +1344,7 @@ which can be very useful, e.g. when implementing menu services.</p>
                 <a class="pilcrow" href="#section-55">&#182;</a>
               </div>
               <ul>
-<li><p><strong><code>--update-prefix</code></strong> (or the <code>$DEPLOY_UPDATE_PREFIX</code> variable) sets the base directory when using the <strong>update</strong> command.</p>
+<li><p><strong><code>--update-prefix &lt;dir&gt;</code></strong> (or the <code>$DEPLOY_UPDATE_PREFIX</code> variable) sets the base directory when using the <strong>update</strong> command.</p>
 <p>The updated script will be saved in <code>bin/deploy</code> relative to this path.
 (Note that setting <code>--update-path</code> or <code>$DEPLOY_UPDATE_PATH</code> overrides this option.)</p>
 </li>
@@ -1390,34 +1352,8 @@ which can be very useful, e.g. when implementing menu services.</p>
 
             </div>
             
-            <div class="content"><div class='highlight'><pre>      --update-prefix) has_value=1 ;;
-
-      *) usage; abort <span class="hljs-string">"unknown option '<span class="hljs-variable">$option</span>'"</span>
-    <span class="hljs-keyword">esac</span>
-
-    <span class="hljs-built_in">local</span> long_option=<span class="hljs-string">"<span class="hljs-variable">$(get_long_option "$option")</span>"</span>
-    script_has_option <span class="hljs-string">"<span class="hljs-variable">$long_option</span>"</span> &amp;&amp; abort <span class="hljs-string">"option <span class="hljs-variable">$(describe_option "$long_option")</span> must only be given once"</span>
-
-    DEPLOY_OPTIONS+=(<span class="hljs-string">"<span class="hljs-variable">$long_option</span>"</span>)
-
-    <span class="hljs-built_in">test</span> -z <span class="hljs-string">"<span class="hljs-variable">$has_value</span>"</span> &amp;&amp; value=1
-    DEPLOY_OPTIONS_MAP=<span class="hljs-string">"<span class="hljs-variable">$(printf "$DEPLOY_OPTIONS_MAP\n$long_option $value")</span>"</span>
-
-    <span class="hljs-built_in">test</span> -z <span class="hljs-string">"<span class="hljs-variable">$has_value</span>"</span> &amp;&amp; script_remove_args <span class="hljs-variable">$i</span> || script_remove_args <span class="hljs-variable">$i</span> 2
-  <span class="hljs-keyword">done</span>
-}
-
-<span class="hljs-function"><span class="hljs-title">apply_script_options</span></span>() {
-
-  <span class="hljs-built_in">local</span> options=<span class="hljs-string">"<span class="hljs-variable">$@</span>"</span>
-  <span class="hljs-built_in">test</span> -z <span class="hljs-string">"<span class="hljs-variable">$options</span>"</span> &amp;&amp; options=<span class="hljs-string">"<span class="hljs-variable">$(echo "$DEPLOY_OPTIONS_MAP"|cut -d ' ' -f 1|tr '\n' ' ')</span>"</span>
-
-  <span class="hljs-keyword">for</span> option <span class="hljs-keyword">in</span> <span class="hljs-variable">$options</span>; <span class="hljs-keyword">do</span>
-    <span class="hljs-built_in">local</span> variable_name=<span class="hljs-string">"DEPLOY_<span class="hljs-variable">$(echo "$option"| tr '-' '_'|tr '[a-z]' '[A-Z]')</span>"</span>
-    <span class="hljs-built_in">local</span> variable_value=<span class="hljs-string">"<span class="hljs-variable">$(echo "$DEPLOY_OPTIONS_MAP"|grep "^${option} "|cut -d ' ' -f 2-999)</span>"</span>
-    <span class="hljs-built_in">export</span> <span class="hljs-variable">$variable_name</span>=<span class="hljs-string">"<span class="hljs-variable">$variable_value</span>"</span>
-  <span class="hljs-keyword">done</span>
-}</pre></div></div>
+            <div class="content"><div class='highlight'><pre>:update-prefix:dir
+)</pre></div></div>
             
         </li>
         
@@ -1428,7 +1364,8 @@ which can be very useful, e.g. when implementing menu services.</p>
               <div class="pilwrap ">
                 <a class="pilcrow" href="#section-56">&#182;</a>
               </div>
-              <p>Note that command line options can be used anywhere in a <strong>deploy</strong> command.
+              <h2 id="command-line-options-format">Command line options format</h2>
+<p>Note that all of <strong>deploy</strong>‘s command line options can be used anywhere in a command.
 The following 3 commands are equivalent:</p>
 <ul>
 <li><code>deploy -u deploy production --keep 3 --yes master</code></li>
@@ -1438,18 +1375,232 @@ The following 3 commands are equivalent:</p>
 
             </div>
             
-            <div class="content"><div class='highlight'><pre><span class="hljs-function"><span class="hljs-title">main</span></span>() {
-  parse_script_options
-  apply_script_options <span class="hljs-built_in">chdir</span>
+            <div class="content"><div class='highlight'><pre><span class="hljs-function"><span class="hljs-title">parse_script_options</span></span>() {
 
-  <span class="hljs-built_in">test</span> -n <span class="hljs-string">"<span class="hljs-variable">$DEPLOY_CHDIR</span>"</span> &amp;&amp; change_working_directory <span class="hljs-string">"<span class="hljs-variable">$DEPLOY_CHDIR</span>"</span>
+  <span class="hljs-built_in">local</span> i=0
+
+  <span class="hljs-keyword">while</span> <span class="hljs-built_in">test</span> <span class="hljs-variable">$i</span> -lt <span class="hljs-string">"<span class="hljs-variable">$(script_arg_count)</span>"</span>; <span class="hljs-keyword">do</span>
+
+    <span class="hljs-built_in">local</span> option=<span class="hljs-string">"<span class="hljs-variable">$(script_arg $i)</span>"</span>
+    <span class="hljs-keyword">if</span> [[ <span class="hljs-string">"<span class="hljs-variable">$option</span>"</span> != -* ]]; <span class="hljs-keyword">then</span>
+      ((i++))
+      <span class="hljs-built_in">continue</span>
+    <span class="hljs-keyword">fi</span>
+
+    <span class="hljs-built_in">local</span> option_name=
+    <span class="hljs-built_in">local</span> option_value=
+    <span class="hljs-built_in">local</span> option_args_count=1</pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-57">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-57">&#182;</a>
+              </div>
+              <h3 id="short-option-format">Short option format</h3>
+<p>Some options have a short form which may be specified with <strong>one hyphen</strong>,
+e.g. <code>-h</code> to display usage or <code>-f</code> to force deployment with uncommitted local changes.</p>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>    <span class="hljs-keyword">if</span> [[ <span class="hljs-string">"<span class="hljs-variable">$option</span>"</span> =~ ^-[a-zA-Z](=..*)?$ ]]; <span class="hljs-keyword">then</span>
+      option_name=<span class="hljs-string">"<span class="hljs-variable">$(get_option_name "${option:0:2}")</span>"</span></pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-58">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-58">&#182;</a>
+              </div>
+              <p>If a short option takes a value, it may be provided either as the next argument
+(e.g. <code>-k 5</code>) or with an equal sign (e.g. <code>-k=5</code>).</p>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>      <span class="hljs-keyword">if</span> [[ <span class="hljs-string">"<span class="hljs-variable">$option</span>"</span> =~ ^..= ]]; <span class="hljs-keyword">then</span>
+        option_value=<span class="hljs-string">"<span class="hljs-variable">${option:3}</span>"</span>
+      <span class="hljs-keyword">fi</span></pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-59">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-59">&#182;</a>
+              </div>
+              <h3 id="long-option-format">Long option format</h3>
+<p>All options have a long form which may be specified with <strong>two hyphens</strong>,
+e.g. <code>--help</code> or <code>--force</code>.</p>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>    <span class="hljs-keyword">elif</span> [[ <span class="hljs-string">"<span class="hljs-variable">$option</span>"</span> =~ ^--[a-zA-Z][a-zA-Z]*(-[a-zA-Z][a-zA-Z]*)*(=..*)?$ ]]; <span class="hljs-keyword">then</span>
+      <span class="hljs-built_in">local</span> long_option=<span class="hljs-string">"<span class="hljs-variable">$(echo "$option"|sed 's/=.*$//')</span>"</span>
+      option_name=<span class="hljs-string">"<span class="hljs-variable">$(get_option_name "$long_option")</span>"</span></pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-60">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-60">&#182;</a>
+              </div>
+              <p>If a long option takes a value, it may be provided either as the next argument
+(e.g. <code>--keep 5</code>) or with an equal sign (e.g. <code>--keep=5</code>).</p>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>      <span class="hljs-keyword">if</span> [[ <span class="hljs-string">"<span class="hljs-variable">$option</span>"</span> =~ ^[^=]*= ]]; <span class="hljs-keyword">then</span>
+        option_value=<span class="hljs-string">"<span class="hljs-variable">$(echo "$option"|sed 's/^[^=]*=//')</span>"</span>
+      <span class="hljs-keyword">fi</span>
+    <span class="hljs-keyword">else</span></pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-61">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-61">&#182;</a>
+              </div>
+              <h3 id="invalid-options">Invalid options</h3>
+<p>The following errors will cause the script to be interrupted and print an error:</p>
+<ul>
+<li>Badly formatted or unknown options (e.g. <code>---foo</code>, <code>-bar</code>, <code>--baz</code>).</li>
+</ul>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>      abort <span class="hljs-string">"unsupported option format '<span class="hljs-variable">$option</span>'"</span>
+    <span class="hljs-keyword">fi</span>
+
+    <span class="hljs-built_in">local</span> option_arity=<span class="hljs-string">"<span class="hljs-variable">$(get_option_arity "$option_name")</span>"</span>
+    <span class="hljs-keyword">if</span> <span class="hljs-built_in">test</span> <span class="hljs-variable">$option_arity</span> -lt 0 || <span class="hljs-built_in">test</span> <span class="hljs-variable">$option_arity</span> -gt 1; <span class="hljs-keyword">then</span>
+      abort <span class="hljs-string">"option arity <span class="hljs-variable">$option_arity</span> is not supported"</span></pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-62">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-62">&#182;</a>
+              </div>
+              <ul>
+<li>Options that take no value specified with a value (e.g. <code>--help=3</code>).</li>
+</ul>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>    <span class="hljs-keyword">elif</span> <span class="hljs-built_in">test</span> -n <span class="hljs-string">"<span class="hljs-variable">$option_value</span>"</span> &amp;&amp; <span class="hljs-built_in">test</span> <span class="hljs-variable">$option_arity</span> -eq 0; <span class="hljs-keyword">then</span>
+      abort <span class="hljs-string">"option <span class="hljs-variable">$(describe_option "$option_name")</span> does not take a value"</span>
+    <span class="hljs-keyword">elif</span> <span class="hljs-built_in">test</span> -z <span class="hljs-string">"<span class="hljs-variable">$option_value</span>"</span> &amp;&amp; <span class="hljs-built_in">test</span> <span class="hljs-variable">$option_arity</span> -eq 1; <span class="hljs-keyword">then</span>
+      option_value=<span class="hljs-string">"<span class="hljs-variable">$(script_arg $((i+1)</span>))"</span>
+      option_args_count=2
+    <span class="hljs-keyword">elif</span> <span class="hljs-built_in">test</span> -z <span class="hljs-string">"<span class="hljs-variable">$option_value</span>"</span> &amp;&amp; <span class="hljs-built_in">test</span> <span class="hljs-variable">$option_arity</span> -eq 0; <span class="hljs-keyword">then</span>
+      option_value=1
+    <span class="hljs-keyword">fi</span></pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-63">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-63">&#182;</a>
+              </div>
+              <ul>
+<li>Options that take a value specified without their value.</li>
+</ul>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>    <span class="hljs-built_in">test</span> -z <span class="hljs-string">"<span class="hljs-variable">$option_value</span>"</span> &amp;&amp; <span class="hljs-built_in">test</span> <span class="hljs-variable">$option_arity</span> -ge 1 \
+      &amp;&amp; abort <span class="hljs-string">"option <span class="hljs-variable">$(describe_option "$option_name")</span> requires a value"</span>
+
+    <span class="hljs-keyword">if</span> [[ <span class="hljs-string">"<span class="hljs-variable">$option_name</span>"</span> == <span class="hljs-string">"help"</span> ]]; <span class="hljs-keyword">then</span>
+      usage; <span class="hljs-built_in">exit</span> 0
+    <span class="hljs-keyword">elif</span> [[ <span class="hljs-string">"<span class="hljs-variable">$option_name</span>"</span> == <span class="hljs-string">"version"</span> ]]; <span class="hljs-keyword">then</span>
+      <span class="hljs-built_in">echo</span> <span class="hljs-variable">$VERSION</span>; <span class="hljs-built_in">exit</span> 0
+    <span class="hljs-keyword">fi</span></pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-64">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-64">&#182;</a>
+              </div>
+              <ul>
+<li>Duplicate options (e.g. both <code>-k 5</code> and <code>--keep 3</code>).</li>
+</ul>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>    script_has_option <span class="hljs-string">"<span class="hljs-variable">$option_name</span>"</span> &amp;&amp; abort <span class="hljs-string">"option <span class="hljs-variable">$(describe_option "$option_name")</span> can only be given once"</span>
+    DEPLOY_OPTIONS_VALUE_MAP=<span class="hljs-string">"<span class="hljs-variable">$(printf "$DEPLOY_OPTIONS_VALUE_MAP\n$option_name $option_value")</span>"</span>
+
+    script_remove_args <span class="hljs-variable">$i</span> <span class="hljs-variable">$option_args_count</span>
+  <span class="hljs-keyword">done</span>
+}
+
+<span class="hljs-function"><span class="hljs-title">apply_script_options</span></span>() {
+
+  <span class="hljs-built_in">local</span> options=<span class="hljs-string">"<span class="hljs-variable">$@</span>"</span>
+  <span class="hljs-built_in">test</span> -z <span class="hljs-string">"<span class="hljs-variable">$options</span>"</span> &amp;&amp; options=<span class="hljs-string">"<span class="hljs-variable">$(echo "$DEPLOY_OPTIONS_VALUE_MAP"|cut -d ' ' -f 1|tr '\n' ' ')</span>"</span>
+
+  <span class="hljs-keyword">for</span> option <span class="hljs-keyword">in</span> <span class="hljs-variable">$options</span>; <span class="hljs-keyword">do</span>
+    <span class="hljs-built_in">local</span> variable_name=<span class="hljs-string">"<span class="hljs-variable">$(get_config_key_env_var "$option")</span>"</span>
+    <span class="hljs-built_in">local</span> variable_value=<span class="hljs-string">"<span class="hljs-variable">$(echo "$DEPLOY_OPTIONS_VALUE_MAP"|grep "^${option} "|cut -d ' ' -f 2-999)</span>"</span>
+    <span class="hljs-built_in">export</span> <span class="hljs-variable">$variable_name</span>=<span class="hljs-string">"<span class="hljs-variable">$variable_value</span>"</span>
+  <span class="hljs-keyword">done</span>
+}
+
+<span class="hljs-function"><span class="hljs-title">main</span></span>() {
+  parse_script_options</pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-65">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-65">&#182;</a>
+              </div>
+              <h3 id="changing-the-working-directory">Changing the working directory</h3>
+<p>By default, <strong>deploy</strong> looks in the current directory to find its configuration file
+and optional environment files. This can be customized by setting the <code>-c, --chdir &lt;dir&gt;</code>
+command line option or the <code>$DEPLOY_CHDIR</code> variable.</p>
+<p>If this option is set, <strong>deploy</strong> will first move to that directory before sourcing
+the environment files and reading the configuration file.</p>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>  apply_script_options <span class="hljs-built_in">chdir</span>
+  validate_working_directory
+  <span class="hljs-built_in">test</span> -n <span class="hljs-string">"<span class="hljs-variable">$DEPLOY_CHDIR</span>"</span> &amp;&amp; <span class="hljs-built_in">cd</span> <span class="hljs-string">"<span class="hljs-variable">$DEPLOY_CHDIR</span>"</span>
   load_env_file
 
   apply_script_options
-  check_config_file_valid <span class="hljs-string">"<span class="hljs-variable">$DEPLOY_CONFIG</span>"</span>
 
   <span class="hljs-built_in">local</span> subcommand=
-  <span class="hljs-keyword">while</span> <span class="hljs-built_in">test</span> -z <span class="hljs-string">"<span class="hljs-variable">$subcommand</span>"</span>; <span class="hljs-keyword">do</span>
+  <span class="hljs-keyword">while</span> script_has_args &amp;&amp; <span class="hljs-built_in">test</span> -z <span class="hljs-string">"<span class="hljs-variable">$subcommand</span>"</span>; <span class="hljs-keyword">do</span>
     DEPLOY_COMMAND=<span class="hljs-string">"<span class="hljs-variable">$(script_arg)</span>"</span>
     <span class="hljs-keyword">case</span> <span class="hljs-string">"<span class="hljs-variable">$DEPLOY_COMMAND</span>"</span> <span class="hljs-keyword">in</span>
       <span class="hljs-built_in">exec</span>) subcommand=exec_remote_command ;;
@@ -1476,11 +1627,11 @@ The following 3 commands are equivalent:</p>
         </li>
         
         
-        <li id="section-57">
+        <li id="section-66">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-57">&#182;</a>
+                <a class="pilcrow" href="#section-66">&#182;</a>
               </div>
               <h2 id="default-command">Default command</h2>
 <p><strong>deploy</strong> is usually used this way:</p>
@@ -1504,31 +1655,16 @@ it is also the <strong>default command</strong>. The following 2 commands are eq
   <span class="hljs-keyword">fi</span>
 
   <span class="hljs-variable">$subcommand</span>
-}
-
-<span class="hljs-function"><span class="hljs-title">change_working_directory</span></span>() {
-  <span class="hljs-built_in">local</span> dir=<span class="hljs-string">"<span class="hljs-variable">$1</span>"</span>
-  <span class="hljs-built_in">test</span> -e <span class="hljs-string">"<span class="hljs-variable">$dir</span>"</span> || abort <span class="hljs-string">"invalid working directory: '<span class="hljs-variable">$dir</span>' does not exist"</span>
-  <span class="hljs-built_in">test</span> -d <span class="hljs-string">"<span class="hljs-variable">$dir</span>"</span> || abort <span class="hljs-string">"invalid working directory: '<span class="hljs-variable">$dir</span>' is not a directory"</span>
-  <span class="hljs-built_in">test</span> -x <span class="hljs-string">"<span class="hljs-variable">$dir</span>"</span> || abort <span class="hljs-string">"invalid working directory: '<span class="hljs-variable">$dir</span>' cannot be accessed"</span>
-  <span class="hljs-built_in">cd</span> <span class="hljs-string">"<span class="hljs-variable">$dir</span>"</span>
-}
-
-<span class="hljs-function"><span class="hljs-title">check_config_file_valid</span></span>() {
-  <span class="hljs-built_in">local</span> file=<span class="hljs-string">"<span class="hljs-variable">$1</span>"</span>
-  <span class="hljs-built_in">test</span> -e <span class="hljs-string">"<span class="hljs-variable">$file</span>"</span> || abort <span class="hljs-string">"invalid config file: <span class="hljs-variable">$file</span> does not exist"</span>
-  <span class="hljs-built_in">test</span> -f <span class="hljs-string">"<span class="hljs-variable">$file</span>"</span> || abort <span class="hljs-string">"invalid config file: <span class="hljs-variable">$file</span> is not a file"</span>
-  <span class="hljs-built_in">test</span> -r <span class="hljs-string">"<span class="hljs-variable">$file</span>"</span> || abort <span class="hljs-string">"invalid config file: <span class="hljs-variable">$file</span> cannot be read"</span>
 }</pre></div></div>
             
         </li>
         
         
-        <li id="section-58">
+        <li id="section-67">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-58">&#182;</a>
+                <a class="pilcrow" href="#section-67">&#182;</a>
               </div>
               <h2 id="sub-commands">Sub-commands</h2>
 <p>These are the commands you will use to set up and deploy your projects.</p>
@@ -1545,7 +1681,7 @@ deploy production setup  <span class="hljs-comment"># all good</span>
 }
 
 <span class="hljs-function"><span class="hljs-title">require_config</span></span>() {
-  check_config_file_valid <span class="hljs-string">"<span class="hljs-variable">$DEPLOY_CONFIG</span>"</span>
+  validate_config_file
 }
 
 <span class="hljs-function"><span class="hljs-title">require_no_args</span></span>() {
@@ -1556,16 +1692,35 @@ deploy production setup  <span class="hljs-comment"># all good</span>
   fi
 }
 
+require_options() {
+  local option_names="</span><span class="hljs-variable">$@</span><span class="hljs-string">"
+  for option_name in <span class="hljs-variable">$option_names</span>; do
+
+    local option_value=<span class="hljs-variable">$(get_last_config_key_value "$option_name")</span>
+    test -n "</span><span class="hljs-variable">$option_value</span><span class="hljs-string">" &amp;&amp; continue
+
+    log_error
+    log_error "</span>The <span class="hljs-string">'$option_name'</span> option is required by the <span class="hljs-string">'$DEPLOY_COMMAND'</span> <span class="hljs-built_in">command</span>.<span class="hljs-string">"
+    log_error "</span>Configure it one of the following ways:<span class="hljs-string">"
+    log_error
+    log_error "</span>* Add the <span class="hljs-string">'$option_name'</span> key to the [<span class="hljs-variable">$DEPLOY_ENV</span>] section of the <span class="hljs-variable">$DEPLOY_CONFIG</span> configuration file.<span class="hljs-string">"
+    log_error "</span>* Set the \$$(get_config_key_env_var <span class="hljs-string">"<span class="hljs-variable">$option_name</span>"</span>) environment variable.<span class="hljs-string">"
+    log_error "</span>* Add the $(describe_option <span class="hljs-string">"<span class="hljs-variable">$option_name</span>"</span>) <span class="hljs-built_in">command</span> line option to the <span class="hljs-built_in">command</span>.<span class="hljs-string">"
+
+    abort "</span><span class="hljs-variable">$DEPLOY_COMMAND</span> interrupted<span class="hljs-string">"
+  done
+}
+
 </span></pre></div></div>
             
         </li>
         
         
-        <li id="section-59">
+        <li id="section-68">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-59">&#182;</a>
+                <a class="pilcrow" href="#section-68">&#182;</a>
               </div>
               <p><a name="setup"></a></p>
 
@@ -1574,11 +1729,11 @@ deploy production setup  <span class="hljs-comment"># all good</span>
         </li>
         
         
-        <li id="section-60">
+        <li id="section-69">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-60">&#182;</a>
+                <a class="pilcrow" href="#section-69">&#182;</a>
               </div>
               <h3 id="-env-setup-"><code>&lt;env&gt; setup</code></h3>
 <p>Perform <strong>first-time setup</strong> tasks on the host before deployment.
@@ -1600,24 +1755,20 @@ Note that this directory <strong>must already exist</strong> on the host and be 
             <div class="content"><div class='highlight'><pre><span class="hljs-function"><span class="hljs-title">set_up_host</span></span>() {
   require_env
   require_no_args
-  whitelist_deploy_options repo
+  validate_deploy_options repo
+  require_options path repo
 
-  <span class="hljs-built_in">local</span> host=<span class="hljs-string">"<span class="hljs-variable">$(get_last_config_key_value host)</span>"</span>
   <span class="hljs-built_in">local</span> path=<span class="hljs-string">"<span class="hljs-variable">$(get_last_config_key_value path)</span>"</span>
-  <span class="hljs-built_in">local</span> repo=<span class="hljs-string">"<span class="hljs-variable">$(get_last_config_key_value repo)</span>"</span>
-
-  <span class="hljs-built_in">test</span> -n <span class="hljs-string">"<span class="hljs-variable">$host</span>"</span> || abort <span class="hljs-string">"host not configured"</span>
-  <span class="hljs-built_in">test</span> -n <span class="hljs-string">"<span class="hljs-variable">$path</span>"</span> || abort <span class="hljs-string">"path not configured"</span>
-  <span class="hljs-built_in">test</span> -n <span class="hljs-string">"<span class="hljs-variable">$repo</span>"</span> || abort <span class="hljs-string">"repo not configured"</span></pre></div></div>
+  <span class="hljs-built_in">local</span> repo=<span class="hljs-string">"<span class="hljs-variable">$(get_last_config_key_value repo)</span>"</span></pre></div></div>
             
         </li>
         
         
-        <li id="section-61">
+        <li id="section-70">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-61">&#182;</a>
+                <a class="pilcrow" href="#section-70">&#182;</a>
               </div>
               <ul>
 <li>Run user-defined <code>pre-setup</code> hooks (if any).</li>
@@ -1630,11 +1781,11 @@ Note that this directory <strong>must already exist</strong> on the host and be 
         </li>
         
         
-        <li id="section-62">
+        <li id="section-71">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-62">&#182;</a>
+                <a class="pilcrow" href="#section-71">&#182;</a>
               </div>
               <ul>
 <li>Create the <code>releases</code> and a <code>tmp</code> directories if they don’t exist already.</li>
@@ -1649,11 +1800,11 @@ Note that this directory <strong>must already exist</strong> on the host and be 
         </li>
         
         
-        <li id="section-63">
+        <li id="section-72">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-63">&#182;</a>
+                <a class="pilcrow" href="#section-72">&#182;</a>
               </div>
               <ul>
 <li>Clone the repository into the <code>repo</code> directory if it isn’t already there.</li>
@@ -1668,11 +1819,11 @@ Note that this directory <strong>must already exist</strong> on the host and be 
         </li>
         
         
-        <li id="section-64">
+        <li id="section-73">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-64">&#182;</a>
+                <a class="pilcrow" href="#section-73">&#182;</a>
               </div>
               <ul>
 <li>Run user-defined <code>post-setup</code> hooks (if any).</li>
@@ -1690,11 +1841,11 @@ Note that this directory <strong>must already exist</strong> on the host and be 
         </li>
         
         
-        <li id="section-65">
+        <li id="section-74">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-65">&#182;</a>
+                <a class="pilcrow" href="#section-74">&#182;</a>
               </div>
               <p><a name="deploy"></a></p>
 
@@ -1703,11 +1854,11 @@ Note that this directory <strong>must already exist</strong> on the host and be 
         </li>
         
         
-        <li id="section-66">
+        <li id="section-75">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-66">&#182;</a>
+                <a class="pilcrow" href="#section-75">&#182;</a>
               </div>
               <h3 id="-env-rev-rev-"><code>&lt;env&gt; rev [rev]</code></h3>
 <p><strong>Deploy a new release</strong> from the latest changes in the Git repository.</p>
@@ -1720,11 +1871,11 @@ Note that this directory <strong>must already exist</strong> on the host and be 
         </li>
         
         
-        <li id="section-67">
+        <li id="section-76">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-67">&#182;</a>
+                <a class="pilcrow" href="#section-76">&#182;</a>
               </div>
               <p>You must provide a Git revision, i.e. a <strong>commit, branch or tag</strong> to deploy,
 either as the <code>[rev]</code> argument, with the <code>rev</code> config key or the <code>$DEPLOY_REV</code> variable.</p>
@@ -1741,16 +1892,17 @@ either as the <code>[rev]</code> argument, with the <code>rev</code> config key 
   <span class="hljs-built_in">test</span> -n <span class="hljs-string">"<span class="hljs-variable">$rev</span>"</span> || abort <span class="hljs-string">"no commit, branch or tag specified"</span>
 
   require_no_args
-  whitelist_deploy_options force keep yes</pre></div></div>
+  validate_deploy_options force keep yes
+  require_options path</pre></div></div>
             
         </li>
         
         
-        <li id="section-68">
+        <li id="section-77">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-68">&#182;</a>
+                <a class="pilcrow" href="#section-77">&#182;</a>
               </div>
               <p>For each deployment, a new release directory will be created in <code>releases</code> in the deployment directory.
 The name of a release directory is the current date and time in the <code>YYYY-MM-DD-HH-MM-SS</code> format.
@@ -1763,18 +1915,16 @@ The name of a release directory is the current date and time in the <code>YYYY-M
   <span class="hljs-built_in">local</span> current_dir=<span class="hljs-string">"<span class="hljs-variable">$path</span>/current"</span>
   <span class="hljs-built_in">local</span> release_dir=<span class="hljs-string">"<span class="hljs-variable">$path</span>/releases/<span class="hljs-variable">$release</span>"</span>
   <span class="hljs-built_in">local</span> tmp_dir=<span class="hljs-string">"<span class="hljs-variable">$path</span>/tmp"</span>
-  <span class="hljs-built_in">local</span> keep=$(get_last_config_key_value keep)
-
-  validate_keep</pre></div></div>
+  <span class="hljs-built_in">local</span> keep=$(get_last_config_key_value keep)</pre></div></div>
             
         </li>
         
         
-        <li id="section-69">
+        <li id="section-78">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-69">&#182;</a>
+                <a class="pilcrow" href="#section-78">&#182;</a>
               </div>
               <p>Note that <strong>deploy</strong> will refuse to deploy unless all your local changes are committed and pushed.
 You can override this behavior with the <code>-f|--force</code> option (or the <code>$DEPLOY_FORCE</code> variable).</p>
@@ -1786,11 +1936,11 @@ You can override this behavior with the <code>-f|--force</code> option (or the <
         </li>
         
         
-        <li id="section-70">
+        <li id="section-79">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-70">&#182;</a>
+                <a class="pilcrow" href="#section-79">&#182;</a>
               </div>
               <p>This is what <strong>deploy</strong> will do during deployment:</p>
 
@@ -1806,7 +1956,10 @@ You can override this behavior with the <code>-f|--force</code> option (or the <
   <span class="hljs-built_in">local</span> get_current_release_dir_command=<span class="hljs-string">"readlink <span class="hljs-variable">$path</span>/current"</span>
   log_command <span class="hljs-string">"<span class="hljs-variable">$get_current_release_dir_command</span>"</span>
 
-  <span class="hljs-built_in">local</span> current_release_dir=<span class="hljs-string">"<span class="hljs-variable">$(run_no_log "$get_current_release_dir_command")</span>"</span>
+  <span class="hljs-built_in">local</span> current_release_dir
+  current_release_dir=<span class="hljs-string">"<span class="hljs-variable">$(run_no_log "$get_current_release_dir_command" 2&gt;&amp;1)</span>"</span>
+  <span class="hljs-built_in">test</span> $? -ne 0 &amp;&amp; <span class="hljs-built_in">test</span> -n <span class="hljs-string">"<span class="hljs-variable">$current_release_dir</span>"</span> &amp;&amp; abort <span class="hljs-string">"<span class="hljs-variable">$current_release_dir</span>"</span>
+
   <span class="hljs-keyword">if</span> <span class="hljs-built_in">test</span> -n <span class="hljs-string">"<span class="hljs-variable">$current_release_dir</span>"</span>; <span class="hljs-keyword">then</span>
     log_color <span class="hljs-variable">$COLOR_CYAN</span> <span class="hljs-string">"<span class="hljs-variable">$current_release_dir</span>"</span>
   <span class="hljs-keyword">else</span>
@@ -1816,11 +1969,11 @@ You can override this behavior with the <code>-f|--force</code> option (or the <
         </li>
         
         
-        <li id="section-71">
+        <li id="section-80">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-71">&#182;</a>
+                <a class="pilcrow" href="#section-80">&#182;</a>
               </div>
               <ul>
 <li>If a <a href="#keep"><code>keep</code> option</a> is configured, all previously deployed releases are listed,
@@ -1835,11 +1988,11 @@ confirmation is asked that they may be deleted if the deployment is successful.<
         </li>
         
         
-        <li id="section-72">
+        <li id="section-81">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-72">&#182;</a>
+                <a class="pilcrow" href="#section-81">&#182;</a>
               </div>
               <ul>
 <li>User-defined pre-deploy hooks (if any) are run <strong>in the directory of the previous release</strong>.
@@ -1859,11 +2012,11 @@ You may define <strong>pre-deploy hooks</strong> to perform any task you might w
         </li>
         
         
-        <li id="section-73">
+        <li id="section-82">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-73">&#182;</a>
+                <a class="pilcrow" href="#section-82">&#182;</a>
               </div>
               <ul>
 <li>The latest changes are fetched from the repository.</li>
@@ -1880,11 +2033,11 @@ You may define <strong>pre-deploy hooks</strong> to perform any task you might w
         </li>
         
         
-        <li id="section-74">
+        <li id="section-83">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-74">&#182;</a>
+                <a class="pilcrow" href="#section-83">&#182;</a>
               </div>
               <ul>
 <li>The new release directory is created and the source is extracted at the specified revision into it.</li>
@@ -1903,11 +2056,11 @@ You may define <strong>pre-deploy hooks</strong> to perform any task you might w
         </li>
         
         
-        <li id="section-75">
+        <li id="section-84">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-75">&#182;</a>
+                <a class="pilcrow" href="#section-84">&#182;</a>
               </div>
               <ul>
 <li>User-defined deploy hooks (if any) are run in the new release directory.
@@ -1921,11 +2074,11 @@ You should define <strong>deploy hooks</strong> to build your application or ins
         </li>
         
         
-        <li id="section-76">
+        <li id="section-85">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-76">&#182;</a>
+                <a class="pilcrow" href="#section-85">&#182;</a>
               </div>
               <ul>
 <li>A symlink of the new release directory is created as <code>current</code> in the deployment directory.</li>
@@ -1940,11 +2093,11 @@ You should define <strong>deploy hooks</strong> to build your application or ins
         </li>
         
         
-        <li id="section-77">
+        <li id="section-86">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-77">&#182;</a>
+                <a class="pilcrow" href="#section-86">&#182;</a>
               </div>
               <ul>
 <li><p>User-defined post-deploy hooks (if any) are run in the current release directory
@@ -1960,11 +2113,11 @@ You should define <strong>deploy hooks</strong> to build your application or ins
         </li>
         
         
-        <li id="section-78">
+        <li id="section-87">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-78">&#182;</a>
+                <a class="pilcrow" href="#section-87">&#182;</a>
               </div>
               <ul>
 <li>Old releases are deleted according to the <code>keep</code> option (if configured and any were found).</li>
@@ -1990,11 +2143,11 @@ You should define <strong>deploy hooks</strong> to build your application or ins
         </li>
         
         
-        <li id="section-79">
+        <li id="section-88">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-79">&#182;</a>
+                <a class="pilcrow" href="#section-88">&#182;</a>
               </div>
               <h3 id="-env-config-key-"><code>[env] config [key]</code></h3>
 <p>Print values from your <code>deploy.conf</code> configuration file.</p>
@@ -2006,11 +2159,11 @@ You should define <strong>deploy hooks</strong> to build your application or ins
         </li>
         
         
-        <li id="section-80">
+        <li id="section-89">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-80">&#182;</a>
+                <a class="pilcrow" href="#section-89">&#182;</a>
               </div>
               <ul>
 <li><p>If called with <strong>no environment and no argument</strong>, it prints the whole configuration file:</p>
@@ -2028,7 +2181,7 @@ port 222
             </div>
             
             <div class="content"><div class='highlight'><pre>  <span class="hljs-keyword">if</span> ! script_has_args; <span class="hljs-keyword">then</span>
-    whitelist_default_options
+    validate_default_options
     <span class="hljs-built_in">test</span> -z <span class="hljs-string">"<span class="hljs-variable">$DEPLOY_ENV</span>"</span> || abort <span class="hljs-string">"this commands only supports both [env] and [key] arguments or neither"</span>
     require_config
     cat <span class="hljs-string">"<span class="hljs-variable">$DEPLOY_CONFIG</span>"</span></pre></div></div>
@@ -2036,11 +2189,11 @@ port 222
         </li>
         
         
-        <li id="section-81">
+        <li id="section-90">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-81">&#182;</a>
+                <a class="pilcrow" href="#section-90">&#182;</a>
               </div>
               <ul>
 <li><p>If called with <strong>the environment and a key</strong>, it prints the last value of that key for that environment
@@ -2060,7 +2213,8 @@ root
     script_shift
     require_env
     require_no_args
-    whitelist_default_options
+    validate_default_options
+    require_config
 
     <span class="hljs-built_in">local</span> value=$(get_last_config_key_value <span class="hljs-string">"<span class="hljs-variable">$key</span>"</span>)
     <span class="hljs-built_in">test</span> -n <span class="hljs-string">"<span class="hljs-variable">$value</span>"</span> &amp;&amp; <span class="hljs-built_in">echo</span> <span class="hljs-string">"<span class="hljs-variable">$value</span>"</span>
@@ -2070,11 +2224,11 @@ root
         </li>
         
         
-        <li id="section-82">
+        <li id="section-91">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-82">&#182;</a>
+                <a class="pilcrow" href="#section-91">&#182;</a>
               </div>
               <h3 id="-env-config-all-key-"><code>&lt;env&gt; config-all &lt;key&gt;</code></h3>
 <p>Print all values of a config key in the current environment and its inherited environments
@@ -2093,7 +2247,8 @@ root
   <span class="hljs-built_in">local</span> key=<span class="hljs-string">"<span class="hljs-variable">$(script_arg)</span>"</span>
   script_shift
   require_no_args
-  whitelist_default_options
+  validate_default_options
+  require_config
 
   <span class="hljs-built_in">test</span> -n <span class="hljs-string">"<span class="hljs-variable">$key</span>"</span> || abort <span class="hljs-string">"&lt;key&gt; missing"</span>
 
@@ -2104,11 +2259,11 @@ root
         </li>
         
         
-        <li id="section-83">
+        <li id="section-92">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-83">&#182;</a>
+                <a class="pilcrow" href="#section-92">&#182;</a>
               </div>
               <h3 id="-env-config-section-"><code>[env] config-section</code></h3>
 <p>Print all values of a config section “as is” (with no inheritance).
@@ -2119,18 +2274,19 @@ If no environment is specified, the default config section is printed.</p>
             
             <div class="content"><div class='highlight'><pre><span class="hljs-function"><span class="hljs-title">print_config_section</span></span>() {
   require_no_args
-  whitelist_default_options
+  validate_default_options
+  require_config
   config_section_exists <span class="hljs-string">"<span class="hljs-variable">$DEPLOY_ENV</span>"</span> &amp;&amp; get_config_section <span class="hljs-string">"<span class="hljs-variable">$DEPLOY_ENV</span>"</span>
 }</pre></div></div>
             
         </li>
         
         
-        <li id="section-84">
+        <li id="section-93">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-84">&#182;</a>
+                <a class="pilcrow" href="#section-93">&#182;</a>
               </div>
               <h3 id="-env-console-path-"><code>&lt;env&gt; console [path]</code></h3>
 <p>Launch an interactive <strong>ssh session</strong> on the host.</p>
@@ -2143,11 +2299,11 @@ If no environment is specified, the default config section is printed.</p>
         </li>
         
         
-        <li id="section-85">
+        <li id="section-94">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-85">&#182;</a>
+                <a class="pilcrow" href="#section-94">&#182;</a>
               </div>
               <ul>
 <li><p>If an <strong>absolute path</strong> is specified, the session starts there.</p>
@@ -2161,16 +2317,16 @@ If no environment is specified, the default config section is printed.</p>
             <div class="content"><div class='highlight'><pre>  <span class="hljs-built_in">local</span> path=<span class="hljs-string">"<span class="hljs-variable">$(script_arg)</span>"</span>
   script_shift
   require_no_args
-  whitelist_deploy_options</pre></div></div>
+  validate_deploy_options</pre></div></div>
             
         </li>
         
         
-        <li id="section-86">
+        <li id="section-95">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-86">&#182;</a>
+                <a class="pilcrow" href="#section-95">&#182;</a>
               </div>
               <ul>
 <li><p>If <strong>no path</strong> is specified, the session starts in the deployment directory.</p>
@@ -2182,16 +2338,17 @@ If no environment is specified, the default config section is printed.</p>
             </div>
             
             <div class="content"><div class='highlight'><pre>  <span class="hljs-keyword">if</span> <span class="hljs-built_in">test</span> -z <span class="hljs-string">"<span class="hljs-variable">$path</span>"</span>; <span class="hljs-keyword">then</span>
+    require_options path
     path=<span class="hljs-string">"<span class="hljs-variable">$(get_last_config_key_value path)</span>"</span></pre></div></div>
             
         </li>
         
         
-        <li id="section-87">
+        <li id="section-96">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-87">&#182;</a>
+                <a class="pilcrow" href="#section-96">&#182;</a>
               </div>
               <ul>
 <li><p>If a <strong>relative path</strong> is specified, it starts there relative to the deployment directory.</p>
@@ -2203,12 +2360,16 @@ If no environment is specified, the default config section is printed.</p>
             </div>
             
             <div class="content"><div class='highlight'><pre>  <span class="hljs-keyword">elif</span> [[ ! <span class="hljs-string">"<span class="hljs-variable">$path</span>"</span> =~ ^\/ ]]; <span class="hljs-keyword">then</span>
+    require_options path
     path=<span class="hljs-string">"<span class="hljs-variable">$(get_last_config_key_value path)</span>/<span class="hljs-variable">$path</span>"</span>
   <span class="hljs-keyword">fi</span>
 
   <span class="hljs-built_in">test</span> -n <span class="hljs-string">"<span class="hljs-variable">$path</span>"</span> || abort <span class="hljs-string">"path is required"</span>
 
-  <span class="hljs-built_in">local</span> shell=<span class="hljs-string">"`build_ssh_command`"</span>
+  <span class="hljs-built_in">local</span> shell
+  shell=<span class="hljs-string">"<span class="hljs-variable">$(build_ssh_command 2&gt;&amp;1)</span>"</span>
+  <span class="hljs-built_in">test</span> $? -eq 0 || abort <span class="hljs-string">"<span class="hljs-variable">$shell</span>"</span>
+
   log_command <span class="hljs-string">"<span class="hljs-variable">$shell</span> -t \"cd <span class="hljs-variable">$path</span>; \$SHELL -il\""</span>
   <span class="hljs-variable">$shell</span> -t <span class="hljs-string">"cd <span class="hljs-variable">$path</span>; \$SHELL -il"</span>
 }</pre></div></div>
@@ -2216,11 +2377,11 @@ If no environment is specified, the default config section is printed.</p>
         </li>
         
         
-        <li id="section-88">
+        <li id="section-97">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-88">&#182;</a>
+                <a class="pilcrow" href="#section-97">&#182;</a>
               </div>
               <p><a name="cleanup"></a></p>
 
@@ -2229,11 +2390,11 @@ If no environment is specified, the default config section is printed.</p>
         </li>
         
         
-        <li id="section-89">
+        <li id="section-98">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-89">&#182;</a>
+                <a class="pilcrow" href="#section-98">&#182;</a>
               </div>
               <h3 id="-env-cleanup-"><code>&lt;env&gt; cleanup</code></h3>
 <p>Deletes old releases based on the <a href="#keep"><code>keep</code> option</a>.</p>
@@ -2246,11 +2407,10 @@ the <code>$DEPLOY_KEEP</code> variable or the <code>-k|--keep</code> command lin
             <div class="content"><div class='highlight'><pre><span class="hljs-function"><span class="hljs-title">clean_up_old_releases</span></span>() {
   require_env
   require_no_args
-  whitelist_deploy_options keep yes
+  validate_deploy_options keep yes
+  require_options path
 
   <span class="hljs-built_in">local</span> keep=$(get_last_config_key_value keep)
-
-  validate_keep
 
   <span class="hljs-built_in">log</span> cleaning up
   <span class="hljs-built_in">echo</span> <span class="hljs-string">"    keep: <span class="hljs-variable">${keep:-all}</span>"</span>
@@ -2270,11 +2430,11 @@ the <code>$DEPLOY_KEEP</code> variable or the <code>-k|--keep</code> command lin
         </li>
         
         
-        <li id="section-90">
+        <li id="section-99">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-90">&#182;</a>
+                <a class="pilcrow" href="#section-99">&#182;</a>
               </div>
               <h3 id="-env-exec-cmd-"><code>&lt;env&gt; exec &lt;cmd&gt;</code></h3>
 <p><strong>Execute</strong> the specified command on the host.</p>
@@ -2285,7 +2445,8 @@ the <code>$DEPLOY_KEEP</code> variable or the <code>-k|--keep</code> command lin
             
             <div class="content"><div class='highlight'><pre><span class="hljs-function"><span class="hljs-title">exec_remote_command</span></span>() {
   require_env
-  whitelist_deploy_options
+  validate_deploy_options
+  require_options path
   <span class="hljs-built_in">local</span> path=<span class="hljs-string">"<span class="hljs-variable">$(get_last_config_key_value path)</span>"</span>
   run <span class="hljs-string">"cd <span class="hljs-variable">$path</span> &amp;&amp; <span class="hljs-variable">$(build_export_env_command)</span> &amp;&amp; <span class="hljs-variable">${DEPLOY_ARGS[@]}</span>"</span>
 }</pre></div></div>
@@ -2293,11 +2454,11 @@ the <code>$DEPLOY_KEEP</code> variable or the <code>-k|--keep</code> command lin
         </li>
         
         
-        <li id="section-91">
+        <li id="section-100">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-91">&#182;</a>
+                <a class="pilcrow" href="#section-100">&#182;</a>
               </div>
               <p><a name="list"></a></p>
 
@@ -2306,11 +2467,11 @@ the <code>$DEPLOY_KEEP</code> variable or the <code>-k|--keep</code> command lin
         </li>
         
         
-        <li id="section-92">
+        <li id="section-101">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-92">&#182;</a>
+                <a class="pilcrow" href="#section-101">&#182;</a>
               </div>
               <h3 id="-env-list-"><code>&lt;env&gt; list</code></h3>
 <p>List the <strong>releases</strong> that have been deployed on the host.</p>
@@ -2325,7 +2486,8 @@ the <code>$DEPLOY_KEEP</code> variable or the <code>-k|--keep</code> command lin
             <div class="content"><div class='highlight'><pre><span class="hljs-function"><span class="hljs-title">list_releases</span></span>() {
   require_env
   require_no_args
-  whitelist_deploy_options
+  validate_deploy_options
+  require_options path
 
   <span class="hljs-built_in">local</span> path=`get_last_config_key_value path`
   <span class="hljs-built_in">local</span> releases_path=<span class="hljs-string">"<span class="hljs-variable">$path</span>/releases"</span>
@@ -2372,11 +2534,11 @@ the <code>$DEPLOY_KEEP</code> variable or the <code>-k|--keep</code> command lin
         </li>
         
         
-        <li id="section-93">
+        <li id="section-102">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-93">&#182;</a>
+                <a class="pilcrow" href="#section-102">&#182;</a>
               </div>
               <h3 id="-update-rev-"><code>update [rev]</code></h3>
 <p>Updates <strong>deploy</strong> to the latest version by downloading it from the Git repository and installing it at <code>/usr/local/bin/deploy</code> (by default).</p>
@@ -2387,20 +2549,21 @@ the <code>$DEPLOY_KEEP</code> variable or the <code>-k|--keep</code> command lin
 
   <span class="hljs-keyword">if</span> script_has_args; <span class="hljs-keyword">then</span>
     DEPLOY_UPDATE_REV=<span class="hljs-string">"<span class="hljs-variable">$(script_arg)</span>"</span>
+    script_shift
   <span class="hljs-keyword">fi</span>
 
   <span class="hljs-built_in">test</span> -z <span class="hljs-string">"<span class="hljs-variable">$DEPLOY_ENV</span>"</span> || abort <span class="hljs-string">"environment not supported for this command"</span>
   require_no_args
-  whitelist_options color update-path update-prefix yes</pre></div></div>
+  validate_update_options</pre></div></div>
             
         </li>
         
         
-        <li id="section-94">
+        <li id="section-103">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-94">&#182;</a>
+                <a class="pilcrow" href="#section-103">&#182;</a>
               </div>
               <p>In addition to the basic requirements, this sub-command also requires <code>chmod</code>, <code>cp</code> and <code>mktemp</code> to be available in the shell.</p>
 
@@ -2418,11 +2581,11 @@ the <code>$DEPLOY_KEEP</code> variable or the <code>-k|--keep</code> command lin
         </li>
         
         
-        <li id="section-95">
+        <li id="section-104">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-95">&#182;</a>
+                <a class="pilcrow" href="#section-104">&#182;</a>
               </div>
               <p>The installation path must be a writable file or not exist.
 If the installation path does not already exist, its parent must be a writable directory.</p>
@@ -2462,11 +2625,11 @@ If the installation path does not already exist, its parent must be a writable d
         </li>
         
         
-        <li id="section-96">
+        <li id="section-105">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-96">&#182;</a>
+                <a class="pilcrow" href="#section-105">&#182;</a>
               </div>
               <p>To perform the update, <strong>deploy</strong> will download its Git repository into a temporary directory that will be cleaned up when the update is done (or fails).</p>
 
@@ -2478,11 +2641,11 @@ If the installation path does not already exist, its parent must be a writable d
         </li>
         
         
-        <li id="section-97">
+        <li id="section-106">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-97">&#182;</a>
+                <a class="pilcrow" href="#section-106">&#182;</a>
               </div>
               <p>The correct revision of the script is then copied to the installation path and made executable.</p>
 
@@ -2511,11 +2674,11 @@ If the installation path does not already exist, its parent must be a writable d
         </li>
         
         
-        <li id="section-98">
+        <li id="section-107">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-98">&#182;</a>
+                <a class="pilcrow" href="#section-107">&#182;</a>
               </div>
               <h2 id="cleaning-up-old-releases">Cleaning up old releases</h2>
 <p><strong>deploy</strong> creates a new release directory for each deployment.
@@ -2540,11 +2703,11 @@ By default, it keeps these directories forever, leaving you responsible for clea
         </li>
         
         
-        <li id="section-99">
+        <li id="section-108">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-99">&#182;</a>
+                <a class="pilcrow" href="#section-108">&#182;</a>
               </div>
               <p><strong>deploy</strong> will list the contents of the <code>releases</code> directory on the host.</p>
 
@@ -2563,11 +2726,11 @@ By default, it keeps these directories forever, leaving you responsible for clea
         </li>
         
         
-        <li id="section-100">
+        <li id="section-109">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-100">&#182;</a>
+                <a class="pilcrow" href="#section-109">&#182;</a>
               </div>
               <p>If no old release is found, deployment will proceed normally.</p>
 
@@ -2581,11 +2744,11 @@ By default, it keeps these directories forever, leaving you responsible for clea
         </li>
         
         
-        <li id="section-101">
+        <li id="section-110">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-101">&#182;</a>
+                <a class="pilcrow" href="#section-110">&#182;</a>
               </div>
               <p>If the number of old releases is equal to or greater than the <code>keep</code> number,
 <strong>deploy</strong> will print the list of releases that will be deleted in red.</p>
@@ -2616,11 +2779,11 @@ By default, it keeps these directories forever, leaving you responsible for clea
         </li>
         
         
-        <li id="section-102">
+        <li id="section-111">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-102">&#182;</a>
+                <a class="pilcrow" href="#section-111">&#182;</a>
               </div>
               <p>Old releases that will be kept will be shown in green.</p>
 
@@ -2635,11 +2798,11 @@ By default, it keeps these directories forever, leaving you responsible for clea
         </li>
         
         
-        <li id="section-103">
+        <li id="section-112">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-103">&#182;</a>
+                <a class="pilcrow" href="#section-112">&#182;</a>
               </div>
               <p>During deployment, the current release being deployed is also indicated in green
 (as it counts towards the <code>keep</code> number).</p>
@@ -2652,11 +2815,11 @@ By default, it keeps these directories forever, leaving you responsible for clea
         </li>
         
         
-        <li id="section-104">
+        <li id="section-113">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-104">&#182;</a>
+                <a class="pilcrow" href="#section-113">&#182;</a>
               </div>
               <p>If there are any releases to delete, <strong>deploy</strong> will ask for confirmation
 (unless the <code>-y, --yes</code> command line option or the <code>$DEPLOY_YES</code> variable is specified).</p>
@@ -2678,11 +2841,11 @@ By default, it keeps these directories forever, leaving you responsible for clea
         </li>
         
         
-        <li id="section-105">
+        <li id="section-114">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-105">&#182;</a>
+                <a class="pilcrow" href="#section-114">&#182;</a>
               </div>
               <p>Responding “no” interrupts the deployment and prints a help message explaining
 how to configure the <code>keep</code> number.</p>
@@ -2705,11 +2868,11 @@ how to configure the <code>keep</code> number.</p>
         </li>
         
         
-        <li id="section-106">
+        <li id="section-115">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-106">&#182;</a>
+                <a class="pilcrow" href="#section-115">&#182;</a>
               </div>
               <p>The actual cleanup of old releases is always performed <strong>after successful deployment</strong>.</p>
 
@@ -2740,11 +2903,11 @@ how to configure the <code>keep</code> number.</p>
         </li>
         
         
-        <li id="section-107">
+        <li id="section-116">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-107">&#182;</a>
+                <a class="pilcrow" href="#section-116">&#182;</a>
               </div>
               <p>A single <code>rm</code> command is executed on the host through SSH,
 deleting all appropriate old release directories in one go.</p>
@@ -2764,11 +2927,11 @@ deleting all appropriate old release directories in one go.</p>
         </li>
         
         
-        <li id="section-108">
+        <li id="section-117">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-108">&#182;</a>
+                <a class="pilcrow" href="#section-117">&#182;</a>
               </div>
               <!-- annotated-source-only -->
 <h2 id="output-exit-codes">Output &amp; exit codes</h2>
@@ -2779,13 +2942,14 @@ deleting all appropriate old release directories in one go.</p>
         </li>
         
         
-        <li id="section-109">
+        <li id="section-118">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-109">&#182;</a>
+                <a class="pilcrow" href="#section-118">&#182;</a>
               </div>
-              <p>Those messages are printed in colors by default on interactive terminals (this can be disabled with the <code>--color never</code> option or <code>$DEPLOY_COLOR</code> variable).</p>
+              <p>Those messages are printed in colors by default on interactive terminals
+(this can be disabled with the <code>--color never</code> option or <code>$DEPLOY_COLOR</code> variable).</p>
 
             </div>
             
@@ -2816,11 +2980,11 @@ deleting all appropriate old release directories in one go.</p>
         </li>
         
         
-        <li id="section-110">
+        <li id="section-119">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-110">&#182;</a>
+                <a class="pilcrow" href="#section-119">&#182;</a>
               </div>
               <ul>
 <li><strong>Deployment progress updates</strong> will be printed in bold.</li>
@@ -2836,11 +3000,11 @@ deleting all appropriate old release directories in one go.</p>
         </li>
         
         
-        <li id="section-111">
+        <li id="section-120">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-111">&#182;</a>
+                <a class="pilcrow" href="#section-120">&#182;</a>
               </div>
               <ul>
 <li><strong>Commands executed</strong> on the host will be printed in yellow.</li>
@@ -2855,11 +3019,11 @@ deleting all appropriate old release directories in one go.</p>
         </li>
         
         
-        <li id="section-112">
+        <li id="section-121">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-112">&#182;</a>
+                <a class="pilcrow" href="#section-121">&#182;</a>
               </div>
               <ul>
 <li><strong>Input prompts</strong> will be printed in magenta.</li>
@@ -2874,11 +3038,11 @@ deleting all appropriate old release directories in one go.</p>
         </li>
         
         
-        <li id="section-113">
+        <li id="section-122">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-113">&#182;</a>
+                <a class="pilcrow" href="#section-122">&#182;</a>
               </div>
               <ul>
 <li>Some output will be printed in various colors to indicate status.</li>
@@ -2896,11 +3060,11 @@ deleting all appropriate old release directories in one go.</p>
         </li>
         
         
-        <li id="section-114">
+        <li id="section-123">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-114">&#182;</a>
+                <a class="pilcrow" href="#section-123">&#182;</a>
               </div>
               <ul>
 <li><strong>Success</strong> message will be printed in green.</li>
@@ -2915,11 +3079,11 @@ deleting all appropriate old release directories in one go.</p>
         </li>
         
         
-        <li id="section-115">
+        <li id="section-124">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-115">&#182;</a>
+                <a class="pilcrow" href="#section-124">&#182;</a>
               </div>
               <ul>
 <li><strong>Errors</strong> will be printed in red.</li>
@@ -2928,26 +3092,25 @@ deleting all appropriate old release directories in one go.</p>
             </div>
             
             <div class="content"><div class='highlight'><pre><span class="hljs-function"><span class="hljs-title">log_error</span></span>() {
-  echo_color <span class="hljs-variable">$COLOR_RED</span> <span class="hljs-string">"<span class="hljs-variable">$@</span>"</span> 1&gt;&amp;2
+  echo_color <span class="hljs-variable">$COLOR_RED</span> <span class="hljs-string">"<span class="hljs-variable">$@</span>"</span>|sed <span class="hljs-string">'s/^ *//'</span>|sed <span class="hljs-string">'s/^/  /'</span> 1&gt;&amp;2
 }</pre></div></div>
             
         </li>
         
         
-        <li id="section-116">
+        <li id="section-125">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-116">&#182;</a>
+                <a class="pilcrow" href="#section-125">&#182;</a>
               </div>
               <p>If <strong>deploy</strong> encounters an unrecoverable error, it will log an error and exit with status 1.</p>
 
             </div>
             
             <div class="content"><div class='highlight'><pre><span class="hljs-function"><span class="hljs-title">abort</span></span>() {
-  <span class="hljs-built_in">local</span> message=<span class="hljs-string">"<span class="hljs-variable">$(echo "$@"|sed 's/^ *//'|sed 's/^/  /')</span>"</span>
   <span class="hljs-built_in">echo</span>
-  log_error <span class="hljs-string">"<span class="hljs-variable">$message</span>"</span>
+  log_error <span class="hljs-string">"<span class="hljs-variable">$@</span>"</span>
   <span class="hljs-built_in">echo</span>
   <span class="hljs-built_in">exit</span> 1
 }
@@ -2979,13 +3142,11 @@ deleting all appropriate old release directories in one go.</p>
 }
 
 <span class="hljs-function"><span class="hljs-title">script_has_option</span></span>() {
-  <span class="hljs-built_in">local</span> option=<span class="hljs-string">"<span class="hljs-variable">$1</span>"</span>
-  <span class="hljs-keyword">for</span> actual_option <span class="hljs-keyword">in</span> <span class="hljs-string">"<span class="hljs-variable">${DEPLOY_OPTIONS[@]}</span>"</span>; <span class="hljs-keyword">do</span>
-    <span class="hljs-keyword">if</span> [[ <span class="hljs-string">"<span class="hljs-variable">$option</span>"</span> == <span class="hljs-string">"<span class="hljs-variable">$actual_option</span>"</span> ]]; <span class="hljs-keyword">then</span>
-      <span class="hljs-built_in">return</span> 0
-    <span class="hljs-keyword">fi</span>
-  <span class="hljs-keyword">done</span>
-  <span class="hljs-built_in">return</span> 1
+  value_is_in <span class="hljs-string">"<span class="hljs-variable">$1</span>"</span> <span class="hljs-string">"<span class="hljs-variable">$(script_option_names)</span>"</span>
+}
+
+<span class="hljs-function"><span class="hljs-title">script_option_names</span></span>() {
+  <span class="hljs-built_in">echo</span> <span class="hljs-string">"<span class="hljs-variable">$DEPLOY_OPTIONS_VALUE_MAP</span>"</span>|sed <span class="hljs-string">'s/ .*$//'</span>|tr <span class="hljs-string">'\n'</span> <span class="hljs-string">' '</span>
 }
 
 <span class="hljs-function"><span class="hljs-title">script_shift</span></span>() {
@@ -3007,40 +3168,127 @@ deleting all appropriate old release directories in one go.</p>
   DEPLOY_ARGS=(<span class="hljs-string">"<span class="hljs-variable">${DEPLOY_ARGS[@]:0:$slice_index}</span>"</span> <span class="hljs-string">"<span class="hljs-variable">${DEPLOY_ARGS[@]:$rest_index:$rest_length}</span>"</span>)
 }
 
-<span class="hljs-function"><span class="hljs-title">get_long_option</span></span>() {
-  <span class="hljs-built_in">local</span> option=<span class="hljs-string">"<span class="hljs-variable">$1</span>"</span>
-  <span class="hljs-keyword">if</span> [[ <span class="hljs-string">"<span class="hljs-variable">$option</span>"</span> =~ ^-[A-Za-z]$ ]]; <span class="hljs-keyword">then</span>
-    <span class="hljs-built_in">local</span> letter=<span class="hljs-string">"<span class="hljs-variable">$(echo "$option"|sed 's/^-//')</span>"</span>
-    <span class="hljs-built_in">echo</span> <span class="hljs-string">"<span class="hljs-variable">$DEPLOY_SHORT_OPTIONS_MAP</span>"</span>|grep <span class="hljs-string">"^<span class="hljs-variable">${letter}</span>:"</span>|sed <span class="hljs-string">'s/^.*://'</span>
+<span class="hljs-function"><span class="hljs-title">get_option_arity</span></span>() {
+  <span class="hljs-built_in">local</span> option_name=<span class="hljs-string">"<span class="hljs-variable">$1</span>"</span>
+  <span class="hljs-built_in">local</span> arity=<span class="hljs-string">"<span class="hljs-variable">$(get_option_properties "$option_name"|cut -d ':' -f 3 -s)</span>"</span>
+  <span class="hljs-built_in">test</span> -n <span class="hljs-string">"<span class="hljs-variable">$arity</span>"</span> &amp;&amp; <span class="hljs-built_in">echo</span> 1 || <span class="hljs-built_in">echo</span> 0
+}
+
+<span class="hljs-function"><span class="hljs-title">get_option_name</span></span>() {
+  <span class="hljs-built_in">local</span> short_or_long_option=<span class="hljs-string">"<span class="hljs-variable">$1</span>"</span>
+  <span class="hljs-keyword">if</span> [[ <span class="hljs-string">"<span class="hljs-variable">$short_or_long_option</span>"</span> =~ ^-?[A-Za-z]$ ]]; <span class="hljs-keyword">then</span>
+    <span class="hljs-built_in">local</span> letter=<span class="hljs-string">"<span class="hljs-variable">$(echo "$short_or_long_option"|sed 's/^-//')</span>"</span>
+    <span class="hljs-built_in">echo</span> <span class="hljs-string">"<span class="hljs-variable">${DEPLOY_OPTIONS_MAP[@]}</span>"</span>|tr <span class="hljs-string">' '</span> <span class="hljs-string">'\n'</span>|grep <span class="hljs-string">"^<span class="hljs-variable">${letter}</span>:"</span>|sed <span class="hljs-string">'s/^[^:]*://'</span>|sed <span class="hljs-string">'s/:.*$//'</span>
   <span class="hljs-keyword">else</span>
-    <span class="hljs-built_in">echo</span> <span class="hljs-string">"<span class="hljs-variable">$option</span>"</span>|sed <span class="hljs-string">'s/^-*//'</span>
+    <span class="hljs-built_in">echo</span> <span class="hljs-string">"<span class="hljs-variable">$short_or_long_option</span>"</span>|sed <span class="hljs-string">'s/^-*//'</span>
   <span class="hljs-keyword">fi</span>
 }
 
+<span class="hljs-function"><span class="hljs-title">get_option_properties</span></span>() {
+  <span class="hljs-built_in">local</span> option_name=<span class="hljs-string">"<span class="hljs-variable">$1</span>"</span>
+  <span class="hljs-built_in">echo</span> <span class="hljs-string">"<span class="hljs-variable">${DEPLOY_OPTIONS_MAP[@]}</span>"</span>|tr <span class="hljs-string">' '</span> <span class="hljs-string">'\n'</span>|grep -E <span class="hljs-string">"^[a-zA-Z]?:<span class="hljs-variable">${option_name}</span>(:|$)"</span>
+}
+
 <span class="hljs-function"><span class="hljs-title">describe_option</span></span>() {
-  <span class="hljs-built_in">local</span> option=<span class="hljs-string">"<span class="hljs-variable">$1</span>"</span>
-  <span class="hljs-built_in">local</span> short_option=<span class="hljs-string">"<span class="hljs-variable">$(echo "$DEPLOY_SHORT_OPTIONS_MAP"|grep ":${option}$"|sed 's/:.*$//')</span>"</span>
-  <span class="hljs-built_in">test</span> -z <span class="hljs-string">"<span class="hljs-variable">$short_option</span>"</span> &amp;&amp; <span class="hljs-built_in">echo</span> <span class="hljs-string">"--<span class="hljs-variable">$option</span>"</span> || <span class="hljs-built_in">echo</span> <span class="hljs-string">"-<span class="hljs-variable">$short_option</span>, --<span class="hljs-variable">$option</span>"</span>
+
+  <span class="hljs-built_in">local</span> option_name=<span class="hljs-string">"<span class="hljs-variable">$1</span>"</span>
+  <span class="hljs-built_in">local</span> description=<span class="hljs-string">"--<span class="hljs-variable">$option_name</span>"</span>
+
+  <span class="hljs-built_in">local</span> short_option_letter=<span class="hljs-string">"<span class="hljs-variable">$(get_option_properties "$option_name"|sed 's/:.*$//')</span>"</span>
+  <span class="hljs-built_in">test</span> -n <span class="hljs-string">"<span class="hljs-variable">$short_option_letter</span>"</span> &amp;&amp; description=<span class="hljs-string">"-<span class="hljs-variable">$short_option_letter</span>, <span class="hljs-variable">$description</span>"</span>
+
+  <span class="hljs-built_in">local</span> option_value_name=<span class="hljs-string">"<span class="hljs-variable">$(get_option_properties "$option_name"|cut -d ':' -f 3 -s)</span>"</span>
+  <span class="hljs-built_in">test</span> -n <span class="hljs-string">"<span class="hljs-variable">$option_value_name</span>"</span> &amp;&amp; description=<span class="hljs-string">"<span class="hljs-variable">$description</span> &lt;<span class="hljs-variable">$option_value_name</span>&gt;"</span>
+
+  <span class="hljs-built_in">echo</span> <span class="hljs-string">"<span class="hljs-variable">$description</span>"</span>
+}
+
+<span class="hljs-function"><span class="hljs-title">value_is_in</span></span>() {
+
+  <span class="hljs-built_in">local</span> value=<span class="hljs-string">"<span class="hljs-variable">$1</span>"</span>
+  <span class="hljs-built_in">shift</span>
+  <span class="hljs-built_in">local</span> args=<span class="hljs-string">"<span class="hljs-variable">$@</span>"</span>
+
+  <span class="hljs-keyword">for</span> arg <span class="hljs-keyword">in</span> <span class="hljs-variable">$args</span>; <span class="hljs-keyword">do</span>
+    <span class="hljs-keyword">if</span> [[ <span class="hljs-string">"<span class="hljs-variable">$arg</span>"</span> == <span class="hljs-string">"<span class="hljs-variable">$value</span>"</span> ]]; <span class="hljs-keyword">then</span>
+      <span class="hljs-built_in">return</span> 0
+    <span class="hljs-keyword">fi</span>
+  <span class="hljs-keyword">done</span>
+
+  <span class="hljs-built_in">return</span> 1
+}
+
+<span class="hljs-function"><span class="hljs-title">validate_color</span></span>() {
+  <span class="hljs-built_in">local</span> color=<span class="hljs-string">"<span class="hljs-variable">$DEPLOY_COLOR</span>"</span>
+  [[ <span class="hljs-string">"<span class="hljs-variable">$color</span>"</span> =~ ^(always|never|auto)$ ]] \
+    || abort <span class="hljs-string">"invalid color option '<span class="hljs-variable">$color</span>': allowed values are always, never or auto"</span>
+}
+
+<span class="hljs-function"><span class="hljs-title">validate_config_file</span></span>() {
+  <span class="hljs-built_in">local</span> file=<span class="hljs-string">"<span class="hljs-variable">$DEPLOY_CONFIG</span>"</span>
+  <span class="hljs-built_in">test</span> -e <span class="hljs-string">"<span class="hljs-variable">$file</span>"</span> || abort <span class="hljs-string">"invalid config file: <span class="hljs-variable">$file</span> does not exist"</span>
+  <span class="hljs-built_in">test</span> -f <span class="hljs-string">"<span class="hljs-variable">$file</span>"</span> || abort <span class="hljs-string">"invalid config file: <span class="hljs-variable">$file</span> is not a file"</span>
+  <span class="hljs-built_in">test</span> -r <span class="hljs-string">"<span class="hljs-variable">$file</span>"</span> || abort <span class="hljs-string">"invalid config file: <span class="hljs-variable">$file</span> cannot be read"</span>
+}
+
+<span class="hljs-function"><span class="hljs-title">validate_identity_file</span></span>() {
+  <span class="hljs-built_in">local</span> file=<span class="hljs-string">"<span class="hljs-variable">$(get_last_config_key_value identity)</span>"</span>
+  <span class="hljs-built_in">test</span> -z <span class="hljs-string">"<span class="hljs-variable">$file</span>"</span> &amp;&amp; <span class="hljs-built_in">return</span>
+  <span class="hljs-built_in">test</span> -e <span class="hljs-string">"<span class="hljs-variable">$file</span>"</span> || abort <span class="hljs-string">"invalid identity file: <span class="hljs-variable">$file</span> does not exist"</span>
+  <span class="hljs-built_in">test</span> -f <span class="hljs-string">"<span class="hljs-variable">$file</span>"</span> || abort <span class="hljs-string">"invalid identity file: <span class="hljs-variable">$file</span> is not a file"</span>
+  <span class="hljs-built_in">test</span> -r <span class="hljs-string">"<span class="hljs-variable">$file</span>"</span> || abort <span class="hljs-string">"invalid identity file: <span class="hljs-variable">$file</span> cannot be read"</span>
+}
+
+<span class="hljs-function"><span class="hljs-title">validate_keep</span></span>() {
+  <span class="hljs-built_in">local</span> keep=<span class="hljs-string">"<span class="hljs-variable">$(get_last_config_key_value keep)</span>"</span>
+  <span class="hljs-built_in">test</span> -z <span class="hljs-string">"<span class="hljs-variable">$keep</span>"</span> \
+    || [[ <span class="hljs-string">"<span class="hljs-variable">$keep</span>"</span> == <span class="hljs-string">"all"</span> ]] \
+    || [[ <span class="hljs-string">"<span class="hljs-variable">$keep</span>"</span> =~ ^[1-9][0-9]*$ ]] \
+    || abort <span class="hljs-string">"keep must be \"all\" or a positive integer greater than zero"</span>
+}
+
+<span class="hljs-function"><span class="hljs-title">validate_port_number</span></span>() {
+  <span class="hljs-built_in">local</span> port=<span class="hljs-string">"<span class="hljs-variable">$(get_last_config_key_value port)</span>"</span>
+  <span class="hljs-built_in">test</span> -z <span class="hljs-string">"<span class="hljs-variable">$port</span>"</span> \
+    || { [[ <span class="hljs-string">"<span class="hljs-variable">$port</span>"</span> =~ ^[1-9][0-9]*$ ]] &amp;&amp; <span class="hljs-built_in">test</span> <span class="hljs-variable">$port</span> -ge 0 &amp;&amp; <span class="hljs-built_in">test</span> <span class="hljs-variable">$port</span> -le 65535; } \
+    || abort <span class="hljs-string">"port must be an integer between 0 and 65535"</span>
+}
+
+<span class="hljs-function"><span class="hljs-title">validate_working_directory</span></span>() {
+  <span class="hljs-built_in">local</span> dir=<span class="hljs-string">"<span class="hljs-variable">$DEPLOY_CHDIR</span>"</span>
+  <span class="hljs-built_in">test</span> -z <span class="hljs-string">"<span class="hljs-variable">$dir</span>"</span> &amp;&amp; <span class="hljs-built_in">return</span>
+  <span class="hljs-built_in">test</span> -e <span class="hljs-string">"<span class="hljs-variable">$dir</span>"</span> || abort <span class="hljs-string">"invalid working directory: '<span class="hljs-variable">$dir</span>' does not exist"</span>
+  <span class="hljs-built_in">test</span> -d <span class="hljs-string">"<span class="hljs-variable">$dir</span>"</span> || abort <span class="hljs-string">"invalid working directory: '<span class="hljs-variable">$dir</span>' is not a directory"</span>
+  <span class="hljs-built_in">test</span> -x <span class="hljs-string">"<span class="hljs-variable">$dir</span>"</span> || abort <span class="hljs-string">"invalid working directory: '<span class="hljs-variable">$dir</span>' cannot be accessed"</span>
+}
+
+<span class="hljs-function"><span class="hljs-title">validate_options</span></span>() {
+  whitelist_options <span class="hljs-string">"<span class="hljs-variable">$@</span>"</span>
+  value_is_in color <span class="hljs-string">"<span class="hljs-variable">$@</span>"</span> &amp;&amp; validate_color
+  value_is_in config <span class="hljs-string">"<span class="hljs-variable">$@</span>"</span> &amp;&amp; validate_config_file
+  value_is_in identity <span class="hljs-string">"<span class="hljs-variable">$@</span>"</span> &amp;&amp; validate_identity_file
+  value_is_in keep <span class="hljs-string">"<span class="hljs-variable">$@</span>"</span> &amp;&amp; validate_keep
+  value_is_in port <span class="hljs-string">"<span class="hljs-variable">$@</span>"</span> &amp;&amp; validate_port_number
+}
+
+<span class="hljs-function"><span class="hljs-title">validate_default_options</span></span>() {
+  validate_options <span class="hljs-built_in">chdir</span> color config <span class="hljs-string">"<span class="hljs-variable">$@</span>"</span>
+}
+
+<span class="hljs-function"><span class="hljs-title">validate_deploy_options</span></span>() {
+  validate_default_options forward-agent host identity path port tty user <span class="hljs-string">"<span class="hljs-variable">$@</span>"</span>
+}
+
+<span class="hljs-function"><span class="hljs-title">validate_update_options</span></span>() {
+  validate_options color update-path update-prefix yes
 }
 
 <span class="hljs-function"><span class="hljs-title">whitelist_options</span></span>() {
-  <span class="hljs-keyword">for</span> option <span class="hljs-keyword">in</span> <span class="hljs-string">"<span class="hljs-variable">${DEPLOY_OPTIONS[@]}</span>"</span>; <span class="hljs-keyword">do</span>
-
-    <span class="hljs-built_in">local</span> allowed=
-    <span class="hljs-keyword">for</span> allowed_option <span class="hljs-keyword">in</span> <span class="hljs-string">"<span class="hljs-variable">$@</span>"</span>; <span class="hljs-keyword">do</span>
-      [[ <span class="hljs-string">"<span class="hljs-variable">$option</span>"</span> == <span class="hljs-string">"<span class="hljs-variable">$allowed_option</span>"</span> ]] &amp;&amp; allowed=1 &amp;&amp; <span class="hljs-built_in">break</span>
-    <span class="hljs-keyword">done</span>
-
-    <span class="hljs-built_in">test</span> -n <span class="hljs-string">"<span class="hljs-variable">$allowed</span>"</span> || abort <span class="hljs-string">"option '<span class="hljs-variable">$(describe_option "$option")</span>' is not applicable to command '<span class="hljs-variable">$DEPLOY_COMMAND</span>'"</span>
+  <span class="hljs-built_in">local</span> allowed_options=<span class="hljs-string">"<span class="hljs-variable">$@</span>"</span>
+  <span class="hljs-keyword">for</span> option_name <span class="hljs-keyword">in</span> $(script_option_names); <span class="hljs-keyword">do</span>
+    value_is_in <span class="hljs-string">"<span class="hljs-variable">$option_name</span>"</span> <span class="hljs-string">"<span class="hljs-variable">$allowed_options</span>"</span> \
+      || abort <span class="hljs-string">"option <span class="hljs-variable">$(describe_option "$option_name")</span> is not applicable to command '<span class="hljs-variable">$DEPLOY_COMMAND</span>'"</span>
   <span class="hljs-keyword">done</span>
-}
-
-<span class="hljs-function"><span class="hljs-title">whitelist_default_options</span></span>() {
-  whitelist_options <span class="hljs-built_in">chdir</span> color config <span class="hljs-string">"<span class="hljs-variable">$@</span>"</span>
-}
-
-<span class="hljs-function"><span class="hljs-title">whitelist_deploy_options</span></span>() {
-  whitelist_default_options forward-agent host identity path port tty user <span class="hljs-string">"<span class="hljs-variable">$@</span>"</span>
 }
 
 main <span class="hljs-variable">$@</span></pre></div></div>
@@ -3048,11 +3296,11 @@ main <span class="hljs-variable">$@</span></pre></div></div>
         </li>
         
         
-        <li id="section-117">
+        <li id="section-126">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-117">&#182;</a>
+                <a class="pilcrow" href="#section-126">&#182;</a>
               </div>
               <h2 id="about-this-page">About this page</h2>
 <p>Documentation generated with <a href="http://ashkenas.com/docco/">Docco</a>.
