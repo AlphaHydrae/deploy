@@ -287,7 +287,8 @@ get_all_config_key_values() {
 
   test -n "$env" \
     && test -n "$key" \
-    && get_config_key_values_inherited $key $env
+    && get_config_key_values_inherited $key $env \
+    | tail -n +2
 }
 
 # ### Environment inheritance
@@ -328,6 +329,11 @@ get_config_key_values_inherited() {
 
   local key="$1"
   local env="$2"
+
+  shift 2
+  local without=("$@")
+  test -n "$env" && without+=("[$env]")
+
   local values=
 
   if ! config_section_exists $env; then
@@ -342,10 +348,15 @@ get_config_key_values_inherited() {
   for inherits_key in $inherits; do
     IFS="$old_ifs"
 
-    local inherited_values="$(get_config_key_values_inherited $key $inherits_key)"
-    if test -n "$inherited_values"; then
-      test -n "$values" && values="$values$new_line"
-      values="$values$inherited_values"
+    if ! value_is_in "[$inherits_key]" "${without[@]}"; then
+      local inherited_result="$(get_config_key_values_inherited $key $inherits_key "${without[@]}")"
+      local inherited_without=("$(echo "$inherited_result"|head -n 1)")
+      local inherited_values="$(echo "$inherited_result"|tail -n +2)"
+      without=("${without[@]}" "${inherited_without[@]}")
+      if test -n "$inherited_values"; then
+        test -n "$values" && values="$values$new_line"
+        values="$values$inherited_values"
+      fi
     fi
 
     IFS=$'\n'
@@ -369,7 +380,8 @@ get_config_key_values_inherited() {
   #     deploy do-it-seriously
   #
   # All environments that have no `inherits` key automatically inherit from the default environment.
-  if test -z "$inherits"; then
+  if test -z "$inherits" && ! value_is_in "[]" "${without[@]}"; then
+    without+=("[]")
     local default_environment_values="$(get_config_key_values_in_env $key)"
     if test -n "$default_environment_values"; then
       [ -n "$values" ] && values="$new_line$values"
@@ -383,7 +395,7 @@ get_config_key_values_inherited() {
     values="$values$current_environment_values"
   fi
 
-  echo "$values"
+  echo "${without[@]}$new_line$values"
 }
 
 

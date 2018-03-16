@@ -397,7 +397,8 @@ They can be present multiple time in the same environment and all their values w
 
   <span class="hljs-built_in">test</span> -n <span class="hljs-string">"<span class="hljs-variable">$env</span>"</span> \
     &amp;&amp; <span class="hljs-built_in">test</span> -n <span class="hljs-string">"<span class="hljs-variable">$key</span>"</span> \
-    &amp;&amp; get_config_key_values_inherited <span class="hljs-variable">$key</span> <span class="hljs-variable">$env</span>
+    &amp;&amp; get_config_key_values_inherited <span class="hljs-variable">$key</span> <span class="hljs-variable">$env</span> \
+    | tail -n +2
 }</pre></div></div>
             
         </li>
@@ -444,6 +445,11 @@ just-do-it
 
   <span class="hljs-built_in">local</span> key=<span class="hljs-string">"<span class="hljs-variable">$1</span>"</span>
   <span class="hljs-built_in">local</span> env=<span class="hljs-string">"<span class="hljs-variable">$2</span>"</span>
+
+  <span class="hljs-built_in">shift</span> 2
+  <span class="hljs-built_in">local</span> without=(<span class="hljs-string">"<span class="hljs-variable">$@</span>"</span>)
+  <span class="hljs-built_in">test</span> -n <span class="hljs-string">"<span class="hljs-variable">$env</span>"</span> &amp;&amp; without+=(<span class="hljs-string">"[<span class="hljs-variable">$env</span>]"</span>)
+
   <span class="hljs-built_in">local</span> values=
 
   <span class="hljs-keyword">if</span> ! config_section_exists <span class="hljs-variable">$env</span>; <span class="hljs-keyword">then</span>
@@ -458,10 +464,15 @@ just-do-it
   <span class="hljs-keyword">for</span> inherits_key <span class="hljs-keyword">in</span> <span class="hljs-variable">$inherits</span>; <span class="hljs-keyword">do</span>
     IFS=<span class="hljs-string">"<span class="hljs-variable">$old_ifs</span>"</span>
 
-    <span class="hljs-built_in">local</span> inherited_values=<span class="hljs-string">"<span class="hljs-variable">$(get_config_key_values_inherited $key $inherits_key)</span>"</span>
-    <span class="hljs-keyword">if</span> <span class="hljs-built_in">test</span> -n <span class="hljs-string">"<span class="hljs-variable">$inherited_values</span>"</span>; <span class="hljs-keyword">then</span>
-      <span class="hljs-built_in">test</span> -n <span class="hljs-string">"<span class="hljs-variable">$values</span>"</span> &amp;&amp; values=<span class="hljs-string">"<span class="hljs-variable">$values</span><span class="hljs-variable">$new_line</span>"</span>
-      values=<span class="hljs-string">"<span class="hljs-variable">$values</span><span class="hljs-variable">$inherited_values</span>"</span>
+    <span class="hljs-keyword">if</span> ! value_is_in <span class="hljs-string">"[<span class="hljs-variable">$inherits_key</span>]"</span> <span class="hljs-string">"<span class="hljs-variable">${without[@]}</span>"</span>; <span class="hljs-keyword">then</span>
+      <span class="hljs-built_in">local</span> inherited_result=<span class="hljs-string">"<span class="hljs-variable">$(get_config_key_values_inherited $key $inherits_key "${without[@]}")</span>"</span>
+      <span class="hljs-built_in">local</span> inherited_without=(<span class="hljs-string">"<span class="hljs-variable">$(echo "$inherited_result"|head -n 1)</span>"</span>)
+      <span class="hljs-built_in">local</span> inherited_values=<span class="hljs-string">"<span class="hljs-variable">$(echo "$inherited_result"|tail -n +2)</span>"</span>
+      without=(<span class="hljs-string">"<span class="hljs-variable">${without[@]}</span>"</span> <span class="hljs-string">"<span class="hljs-variable">${inherited_without[@]}</span>"</span>)
+      <span class="hljs-keyword">if</span> <span class="hljs-built_in">test</span> -n <span class="hljs-string">"<span class="hljs-variable">$inherited_values</span>"</span>; <span class="hljs-keyword">then</span>
+        <span class="hljs-built_in">test</span> -n <span class="hljs-string">"<span class="hljs-variable">$values</span>"</span> &amp;&amp; values=<span class="hljs-string">"<span class="hljs-variable">$values</span><span class="hljs-variable">$new_line</span>"</span>
+        values=<span class="hljs-string">"<span class="hljs-variable">$values</span><span class="hljs-variable">$inherited_values</span>"</span>
+      <span class="hljs-keyword">fi</span>
     <span class="hljs-keyword">fi</span>
 
     IFS=$<span class="hljs-string">'\n'</span>
@@ -495,7 +506,8 @@ deploy <span class="hljs-keyword">do</span>-it-seriously
 
             </div>
             
-            <div class="content"><div class='highlight'><pre>  <span class="hljs-keyword">if</span> <span class="hljs-built_in">test</span> -z <span class="hljs-string">"<span class="hljs-variable">$inherits</span>"</span>; <span class="hljs-keyword">then</span>
+            <div class="content"><div class='highlight'><pre>  <span class="hljs-keyword">if</span> <span class="hljs-built_in">test</span> -z <span class="hljs-string">"<span class="hljs-variable">$inherits</span>"</span> &amp;&amp; ! value_is_in <span class="hljs-string">"[]"</span> <span class="hljs-string">"<span class="hljs-variable">${without[@]}</span>"</span>; <span class="hljs-keyword">then</span>
+    without+=(<span class="hljs-string">"[]"</span>)
     <span class="hljs-built_in">local</span> default_environment_values=<span class="hljs-string">"<span class="hljs-variable">$(get_config_key_values_in_env $key)</span>"</span>
     <span class="hljs-keyword">if</span> <span class="hljs-built_in">test</span> -n <span class="hljs-string">"<span class="hljs-variable">$default_environment_values</span>"</span>; <span class="hljs-keyword">then</span>
       [ -n <span class="hljs-string">"<span class="hljs-variable">$values</span>"</span> ] &amp;&amp; values=<span class="hljs-string">"<span class="hljs-variable">$new_line</span><span class="hljs-variable">$values</span>"</span>
@@ -509,7 +521,7 @@ deploy <span class="hljs-keyword">do</span>-it-seriously
     values=<span class="hljs-string">"<span class="hljs-variable">$values</span><span class="hljs-variable">$current_environment_values</span>"</span>
   <span class="hljs-keyword">fi</span>
 
-  <span class="hljs-built_in">echo</span> <span class="hljs-string">"<span class="hljs-variable">$values</span>"</span>
+  <span class="hljs-built_in">echo</span> <span class="hljs-string">"<span class="hljs-variable">${without[@]}</span><span class="hljs-variable">$new_line</span><span class="hljs-variable">$values</span>"</span>
 }</pre></div></div>
             
         </li>
