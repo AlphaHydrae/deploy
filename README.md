@@ -324,7 +324,7 @@ configured by the user with the `path` config key or the local `$DEPLOY_PATH` va
       forward-env FOO
       forward-env BAR BAZ QUX
 
-If you have a `.env` file in your local project directory, it will automatically be sourced.
+If you have a **`.env`** file in your local project directory, it will automatically be sourced.
 This can be handy to create local variables that you can forward to the host.
 
     # .env
@@ -334,6 +334,12 @@ This can be handy to create local variables that you can forward to the host.
 (Note that if you use the `-C, --chdir` command line option or the `$DEPLOY_CHDIR` variable,
 the `.env` file is read *after* the working directory is changed, so setting `$DEPLOY_CHDIR`
 in the file has no effect.)
+
+If you have an environment file named after the environment, it will also be sourced.
+For example, when deploying in the "production" environment, a **`.env.production`** file
+would be sourced if present in the local project directory.
+
+If both `.env` and `.env.production` are present, they are sourced in that order.
 
 ## Command line options & environment variables
 

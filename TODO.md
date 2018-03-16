@@ -1,7 +1,7 @@
 # TODO
 
 * standardize indented logs & log_color/echo_color
-* also source environment-specific env files (e.g. `.env.production`)
+* list available environments when env is missing
 * check required commands on server (at setup)
 * add `-e|--environment` option to support environments named after a sub-command
 * `setup` and `rev` should update the git clone url if it changed

@@ -560,7 +560,7 @@ build_export_env_command() {
   echo "$env_command"
 }
 
-# If you have a `.env` file in your local project directory, it will automatically be sourced.
+# If you have a **`.env`** file in your local project directory, it will automatically be sourced.
 # This can be handy to create local variables that you can forward to the host.
 #
 #     # .env
@@ -570,9 +570,21 @@ build_export_env_command() {
 # (Note that if you use the `-C, --chdir` command line option or the `$DEPLOY_CHDIR` variable,
 # the `.env` file is read *after* the working directory is changed, so setting `$DEPLOY_CHDIR`
 # in the file has no effect.)
-load_env_file() {
+load_env_files() {
+
   test -f .env && { test -r .env || abort "environment file .env is not readable"; }
   test -f .env && { . .env || abort "an error occurred while sourcing .env"; }
+
+  # If you have an environment file named after the environment, it will also be sourced.
+  # For example, when deploying in the "production" environment, a **`.env.production`** file
+  # would be sourced if present in the local project directory.
+  #
+  # If both `.env` and `.env.production` are present, they are sourced in that order.
+  if test -n "$DEPLOY_ENV"; then
+    local file=".env.$DEPLOY_ENV"
+    test -f "$file" && { test -r "$file" || abort "environment file $file is not readable"; }
+    test -f "$file" && { . "$file" || abort "an error occurred while sourcing $environment_specific_file"; }
+  fi
 }
 
 
@@ -809,7 +821,6 @@ main() {
   apply_script_options chdir
   validate_working_directory
   test -n "$DEPLOY_CHDIR" && cd "$DEPLOY_CHDIR"
-  load_env_file
 
   apply_script_options
 
@@ -837,6 +848,8 @@ main() {
     esac
     script_shift
   done
+
+  load_env_files
 
   # ## Default command
   #
